@@ -1,7 +1,11 @@
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.InstanceType;
 import software.amazon.awssdk.services.ec2.model.RunInstancesRequest;
 import software.amazon.awssdk.services.ec2.model.RunInstancesResponse;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.util.Base64;
 import java.io.*;
@@ -14,15 +18,27 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-//        Upload to S3
-//        Read from S3
-        FileReader fr = new FileReader("input/input-sample-1.txt");
-        BufferedReader br = new BufferedReader(fr);
+        // Get data from args
+        File input = new File(args[0]);
+        File output = new File(args[1]);
+        int workerRatio = Integer.parseInt(args[2]);
+        Boolean terminate = args.length == 4 && args[3].equals("terminate"); //TODO: Check with Moshe, What is 'terminate' type?
 
+        // Get s3
+        String bucket_name = "oo-dspsp-ass1";
+        S3Client s3 = S3Client.builder().region(Region.US_EAST_1).build();
 
+        // Upload input to S3
+        String key_name = generate_keyName();
+        s3.putObject(PutObjectRequest.builder().bucket(bucket_name).key(key_name).build(), RequestBody.fromFile(input));
 
     }
 
+    public static String generate_keyName(){
+        String newKey = "inputTest";
+        //TODO: Get available name
+        return  newKey;
+    }
 
     public static void awsTry(){
         Ec2Client ec2 = Ec2Client.create();
