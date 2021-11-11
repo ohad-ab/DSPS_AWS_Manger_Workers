@@ -19,14 +19,8 @@ public class Main {
         FileReader fr = new FileReader("input/input-sample-1.txt");
         BufferedReader br = new BufferedReader(fr);
 
-        LinkedBlockingQueue<InFile> queue = new LinkedBlockingQueue<>();
-        String line;
-        while((line = br.readLine()) != null) {
-            String[] splitted = line.split("\t");
-            InFile f = new InFile(splitted[0], splitted[1]);
-            queue.add(f);
-        }
-                System.out.println(queue);
+
+
     }
 
 
