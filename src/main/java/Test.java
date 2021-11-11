@@ -69,7 +69,7 @@ public class Test {
         is.close();
     }
 
-        public static void  main(String[] args) throws IOException, ParserConfigurationException {
+        public static void  main(String[] args) throws MalformedURLException {
         File input = new File("input/input-sample-1.txt");
 //        S3Client s3 = S3Client.builder().region(Region.US_EAST_1).build();
 //        String bucket_name = "oo-dspsp-ass1";
@@ -105,10 +105,27 @@ public class Test {
 //            System.exit(1);
 
 //        s3.putObject(PutObjectRequest.builder().bucket("oo-dspsp-ass1").key("inputTest").build(), RequestBody.fromFile(input));
+
         URL url = new URL("https://faculty.washington.edu/stuve/log_error.pdf");
-        toHTML(url);
-        toImage(url);
-        toText(url);
+
+        try {
+            toHTML(url);
+        }
+        catch (Exception e){
+            System.err.println("Can't convert to HTML:\n" + e.getMessage());
+        }
+        try {
+            toImage(url);
+        }
+        catch (Exception e){
+            System.err.println("Can't convert to PNG:\n" + e.getMessage());
+        }
+        try {
+            toText(url);
+        }
+        catch (Exception e){
+            System.err.println("Can't convert to TXT:\n" + e.getMessage());
+        }
 
     }
 }
