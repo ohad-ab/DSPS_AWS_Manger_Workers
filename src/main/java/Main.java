@@ -100,15 +100,20 @@ public class Main {
         for (Reservation reservation:reservations) {
             Instance instance = reservation.instances().get(0);
             if(!instance.tags().isEmpty() && instance.tags().get(0).value().equals("Manager"))
-                if(instance.state().nameAsString().equals("running")) {
+                if(instance.state().nameAsString().equals("pending")){
+                    System.out.println("There is a manager pending, try again");//TODO: ask moshe about the pending status
+                    return true;
+                }
+                else if (instance.state().nameAsString().equals("running")) {
                     System.out.println("Manager is already running");
                     return true;
                 }
-        }
+            }
+
         return false;
     }
 
-    public static String generate_keyName(){
+    public static String generate_keyName(){//TODO: check if needed.
         String newKey = "inputTest";
         //TODO: Get available name
         return  newKey;
