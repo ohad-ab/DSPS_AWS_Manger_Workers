@@ -45,8 +45,43 @@ public class Main {
 //        // Upload input to S3
 //        String key_name = generate_keyName();
 //        s3.putObject(PutObjectRequest.builder().bucket(bucket_name).key(key_name).build(), RequestBody.fromFile(input));
-//        ec2Try();
-        sqsTry();
+        String managerJarLoc =""; //TODO: get from s3
+        String workerJarLoc =""; //TODO: get from s3
+        if (!isRunningEc2()){
+            runNewManager(managerJarLoc, workerJarLoc);
+        }
+
+
+        ec2Try();
+//        sqsTry();
+    }
+
+    private static void runNewManager(String managerJar, String workerJar ) {
+        Ec2Client ec2 = Ec2Client.create();
+        String amiId = "ami-04ad2567c9e3d7893";
+        String javaInstallation = "wget --no-check-certificate --no-cookies --header \"Cookie: oraclelicense=accept-securebackup-cookie\" http://download.oracle.com/otn-pub/java/jdk/8u141-b15/336fa29ff2bb4ef291e347e091f7f4a7/jdk-8u141-linux-x64.rpm\n"+
+                "sudo yum install -y jdk-8u141-linux-x64.rpm\n";
+
+        RunInstancesRequest runRequest = RunInstancesRequest.builder()
+                .instanceType(InstanceType.T2_MICRO)
+                .imageId(amiId)
+                .maxCount(1)
+                .minCount(1)
+                .keyName("key1")
+                .securityGroupIds("sg-0f83f8c78a44f97a6")
+                .userData(Base64.getEncoder().encodeToString(
+                        ("#!/bin/bash\n"+
+                                javaInstallation+
+                                managerJar
+                                ).getBytes()))
+                .build();
+        RunInstancesResponse response = ec2.runInstances(runRequest);
+        List<Instance> instances = response.instances();
+        System.out.println(instances);
+    }
+
+    private static boolean isRunningEc2() {
+        return false;
     }
 
     public static String generate_keyName(){
@@ -57,9 +92,11 @@ public class Main {
 
     public static void ec2Try(){
         Ec2Client ec2 = Ec2Client.create();
-        String amiId = "ami-00e95a9222311e8ed";
+        String amiId = "ami-04ad2567c9e3d7893";
+        String javaInstallation = "wget --no-check-certificate --no-cookies --header \"Cookie: oraclelicense=accept-securebackup-cookie\" http://download.oracle.com/otn-pub/java/jdk/8u141-b15/336fa29ff2bb4ef291e347e091f7f4a7/jdk-8u141-linux-x64.rpm\n"+
+                "sudo yum install -y jdk-8u141-linux-x64.rpm\n";
 
-//        ami without java - ami-04ad2567c9e3d7893 (T1_MICRO)
+//        ami without java - ami-04ad2567c9e3d7893 (T2_MICRO)
 //        ami with java - ami-00e95a9222311e8ed (T2_MICRO)
 
         RunInstancesRequest runRequest = RunInstancesRequest.builder()
@@ -67,9 +104,11 @@ public class Main {
                 .imageId(amiId)
                 .maxCount(1)
                 .minCount(1)
-                .keyName("key2")
+                .keyName("key1")
+                .securityGroupIds("sg-0f83f8c78a44f97a6")
                 .userData(Base64.getEncoder().encodeToString(
-                                ("#!/bin/bash\n" + "set -x\n" + "echo hello world").getBytes()))
+                                ("#!/bin/bash\n"+
+                                         javaInstallation).getBytes()))
                 .build();
         RunInstancesResponse response = ec2.runInstances(runRequest);
         List<Instance> instances = response.instances();
@@ -77,6 +116,7 @@ public class Main {
         System.out.println(instances);
 
         String id = instances.get(0).instanceId();
+
         GetConsoleOutputResponse res = GetConsoleOutputResponse.builder().instanceId(id).build();
 
         System.out.println(res);
