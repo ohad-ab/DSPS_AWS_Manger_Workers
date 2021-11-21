@@ -70,12 +70,18 @@ public class Main {
                 .imageId(amiId)
                 .maxCount(1)
                 .minCount(1)
-                .keyName("key1")
+                .keyName("key2")
                 .securityGroupIds("sg-0a245fb00956df9ba")
                 .userData(Base64.getEncoder().encodeToString(
                         ("#!/bin/bash\n"+
                                 javaInstallation+
-                                managerJar
+                         //       managerJar
+                                "export aws_access_key_id= \n" +
+                                "export aws_secret_access_key= \n" +
+                                "export aws_session_token=\n" +
+                                "export AWS_REGION=us-east-1\n" +
+                                "aws s3 cp s3://dsps-221/Manager.jar Manager.jar\n" +
+                                "java -jar Manager.jar\n"
                                 ).getBytes()))
                 .build();
 //        String reservation_id = ec2.describeInstances().reservations().get(0).instances().get(0).instanceId();
