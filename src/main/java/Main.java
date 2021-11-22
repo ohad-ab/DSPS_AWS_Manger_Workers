@@ -52,9 +52,7 @@ public class Main {
         if (!isRunningEc2(ec2)){
             runNewManager(ec2,managerJarLoc, workerJarLoc);
         }
-
-
-        //ec2Try();
+        // ec2Try();
        // sqsTry();
     }
 
