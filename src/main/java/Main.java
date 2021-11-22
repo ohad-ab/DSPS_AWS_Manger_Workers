@@ -65,21 +65,19 @@ public class Main {
                 "sudo yum install -y jdk-8u141-linux-x64.rpm\n";
         //sg-0a245fb00956df9ba security group ohad
         //sg-0f83f8c78a44f97a6 security group ori
+        IamInstanceProfileSpecification iam = IamInstanceProfileSpecification.builder().name("EMR_EC2_DefaultRole").build();//.name("EMR_EC2_DefaultRole").build();
         RunInstancesRequest runRequest = RunInstancesRequest.builder()
                 .instanceType(InstanceType.T2_MICRO)
                 .imageId(amiId)
                 .maxCount(1)
                 .minCount(1)
                 .keyName("key2")
+                .iamInstanceProfile(iam)
                 .securityGroupIds("sg-0a245fb00956df9ba")
                 .userData(Base64.getEncoder().encodeToString(
                         ("#!/bin/bash\n"+
                                 javaInstallation+
                          //       managerJar
-                                "export aws_access_key_id= \n" +
-                                "export aws_secret_access_key= \n" +
-                                "export aws_session_token=\n" +
-                                "export AWS_REGION=us-east-1\n" +
                                 "aws s3 cp s3://dsps-221/Manager.jar Manager.jar\n" +
                                 "java -jar Manager.jar\n"
                                 ).getBytes()))
