@@ -1,8 +1,12 @@
+import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.core.sync.ResponseTransformer;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.*;
+import software.amazon.awssdk.services.ec2.model.Tag;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
 import software.amazon.awssdk.regions.Region;
@@ -33,19 +37,27 @@ import java.util.*;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-//        // Get data from args
-//        File input = new File(args[0]);
+        // Get data from args
+        File input = new File(args[0]);
 //        File output = new File(args[1]);
 //        int workerRatio = Integer.parseInt(args[2]);
 //        Boolean terminate = args.length == 4 && args[3].equals("terminate"); //TODO: Check with Moshe, What is 'terminate' type?
-//
-//        // Get s3
+
+        // Get s3
 //        String bucket_name = "oo-dspsp-ass1";
-//        S3Client s3 = S3Client.builder().region(Region.US_EAST_1).build();
-//
-//        // Upload input to S3
-//        String key_name = generate_keyName();
-//        s3.putObject(PutObjectRequest.builder().bucket(bucket_name).key(key_name).build(), RequestBody.fromFile(input));
+        String bucket_name = "dsps-221";
+
+        S3Client s3 = S3Client.builder().region(Region.US_EAST_1).build();
+
+        // Upload input to S3
+        String key_name = generate_keyName();
+        s3.putObject(PutObjectRequest.builder().bucket(bucket_name).key(key_name).build(), RequestBody.fromFile(input));
+
+        //create sqs
+        SqsClient sqs=createSQS();
+    //    S3Object obj = s3.getObject(GetObjectRequest.builder().build());
+        sendMessage(sqs,"s3://"+bucket_name+"/"+key_name);
+
         String managerJarLoc =""; //TODO: get from s3
         String workerJarLoc =""; //TODO: get from s3
         Ec2Client ec2 = Ec2Client.create();
@@ -154,10 +166,9 @@ public class Main {
         System.out.println(res.output());
 
     }
-
     private static final String QUEUE_NAME = "testQueue" + new Date().getTime();
 
-    public static void sqsTry(){
+    public static SqsClient createSQS() {
         SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();
 
 
@@ -171,53 +182,56 @@ public class Main {
 
         }
 
+
+        return sqs;
+    }
+    public static void sendMessage(SqsClient sqs, String message){
         GetQueueUrlRequest getQueueRequest = GetQueueUrlRequest.builder()
                 .queueName(QUEUE_NAME)
                 .build();
         String queueUrl = sqs.getQueueUrl(getQueueRequest).queueUrl();
-
         SendMessageRequest send_msg_request = SendMessageRequest.builder()
                 .queueUrl(queueUrl)
-                .messageBody("hello world")
+                .messageBody(message)
                 .build();
         sqs.sendMessage(send_msg_request);
 
 
-        // Send multiple messages to the queue
-        SendMessageBatchRequest send_batch_request = SendMessageBatchRequest.builder()
-                .queueUrl(queueUrl)
-                .entries(
-                        SendMessageBatchRequestEntry.builder()
-                                .messageBody("Hello from message 1 - Ohad")
-                                .id("msg_1")
-                                .build()
-                        ,
-                        SendMessageBatchRequestEntry.builder()
-                                .messageBody("Hello from message 2 - Ori")
-                                .id("msg_2")
-                                .build())
-                .build();
-        sqs.sendMessageBatch(send_batch_request);
-
-        // receive messages from the queue
-        ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
-                .queueUrl(queueUrl)
-                .build();
-        List<Message> messages = sqs.receiveMessage(receiveRequest).messages();
-        System.out.println(messages.toString());
-        receiveRequest = ReceiveMessageRequest.builder()
-                .queueUrl(queueUrl)
-                .build();
-         messages = sqs.receiveMessage(receiveRequest).messages();
-        System.out.println(messages.toString());
-        receiveRequest = ReceiveMessageRequest.builder()
-                .queueUrl(queueUrl)
-                .build();
-        messages = sqs.receiveMessage(receiveRequest).messages();
-        System.out.println(messages.toString());
-        for (Message m : messages) {
-            System.out.println(m.body());
-        }
+//        // Send multiple messages to the queue
+//        SendMessageBatchRequest send_batch_request = SendMessageBatchRequest.builder()
+//                .queueUrl(queueUrl)
+//                .entries(
+//                        SendMessageBatchRequestEntry.builder()
+//                                .messageBody("Hello from message 1 - Ohad")
+//                                .id("msg_1")
+//                                .build()
+//                        ,
+//                        SendMessageBatchRequestEntry.builder()
+//                                .messageBody("Hello from message 2 - Ori")
+//                                .id("msg_2")
+//                                .build())
+//                .build();
+//        sqs.sendMessageBatch(send_batch_request);
+//
+//        // receive messages from the queue
+//        ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
+//                .queueUrl(queueUrl)
+//                .build();
+//        List<Message> messages = sqs.receiveMessage(receiveRequest).messages();
+//        System.out.println(messages.toString());
+//        receiveRequest = ReceiveMessageRequest.builder()
+//                .queueUrl(queueUrl)
+//                .build();
+//         messages = sqs.receiveMessage(receiveRequest).messages();
+//        System.out.println(messages.toString());
+//        receiveRequest = ReceiveMessageRequest.builder()
+//                .queueUrl(queueUrl)
+//                .build();
+//        messages = sqs.receiveMessage(receiveRequest).messages();
+//        System.out.println(messages.toString());
+//        for (Message m : messages) {
+//            System.out.println(m.body());
+//        }
 
 //         delete messages from the queue
 //        for (Message m : messages) {
@@ -228,6 +242,7 @@ public class Main {
 //            sqs.deleteMessage(deleteRequest);
 //        }
     }
+
 
 }
 
