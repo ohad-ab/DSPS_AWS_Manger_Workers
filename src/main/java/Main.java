@@ -36,6 +36,11 @@ import java.util.*;
 
 
 public class Main {
+    private static final String QUEUE_NAME = "testQueue" + new Date().getTime();
+    private static S3Client s3 = S3Client.builder().region(Region.US_EAST_1).build();
+    private static SqsClient sqs=createSQS();
+    private static boolean terminate=true;
+
     public static void main(String[] args) throws Exception {
         // Get data from args
         File input = new File(args[0]);
@@ -47,22 +52,28 @@ public class Main {
 //        String bucket_name = "oo-dspsp-ass1";
         String bucket_name = "dsps-221";
 
-        S3Client s3 = S3Client.builder().region(Region.US_EAST_1).build();
-
         // Upload input to S3
         String key_name = generate_keyName();
-        s3.putObject(PutObjectRequest.builder().bucket(bucket_name).key(key_name).build(), RequestBody.fromFile(input));
+        //s3.putObject(PutObjectRequest.builder().bucket(bucket_name).key(key_name).build(), RequestBody.fromFile(input));
 
         //create sqs
-        SqsClient sqs=createSQS();
-    //    S3Object obj = s3.getObject(GetObjectRequest.builder().build());
-        sendMessage(sqs,"s3://"+bucket_name+"/"+key_name);
 
+    //    S3Object obj = s3.getObject(GetObjectRequest.builder().build());
+    //    sendMessage(sqs,"s3://"+bucket_name+"/"+key_name);
+        GetQueueUrlResponse getQueueUrlResponse =
+                sqs.getQueueUrl(GetQueueUrlRequest.builder().queueName(QUEUE_NAME).build());
+        String queueUrl = getQueueUrlResponse.queueUrl();
         String managerJarLoc =""; //TODO: get from s3
         String workerJarLoc =""; //TODO: get from s3
         Ec2Client ec2 = Ec2Client.create();
         if (!isRunningEc2(ec2)){
             runNewManager(ec2,managerJarLoc, workerJarLoc);
+        }
+
+        waitForMessage(queueUrl);
+        if(terminate)
+        {
+            sendMessage(sqs,"terminate");
         }
         // ec2Try();
        // sqsTry();
@@ -166,7 +177,6 @@ public class Main {
         System.out.println(res.output());
 
     }
-    private static final String QUEUE_NAME = "testQueue" + new Date().getTime();
 
     public static SqsClient createSQS() {
         SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();
@@ -243,6 +253,25 @@ public class Main {
 //        }
     }
 
+    public static void waitForMessage(String queueUrl){
+        System.out.println("waiting for a message");
+        while (true)
+        {
+            ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(queueUrl).build();
+            List<Message> messages = sqs.receiveMessage(receiveMessageRequest).messages();
+            for(Message message:messages)
+            {
+                String path= message.body();
+                String[] split=path.split("/",4);
+                System.out.println(split.toString());
+                s3.getObject(GetObjectRequest.builder().bucket(split[2]).key(split[3]).build(),ResponseTransformer.toFile(new File("./output/output.html")));
+                System.out.println("message received!");
+                DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder().queueUrl(queueUrl).receiptHandle(message.receiptHandle()).build();
+                sqs.deleteMessage(deleteMessageRequest);
+                return;
+            }
+        }
+    }
 
 }
 

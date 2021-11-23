@@ -45,8 +45,15 @@ public class Test {
     public static void toHTML(URL url) throws IOException, ParserConfigurationException {
         InputStream is = url.openStream();
         PDDocument pdf = PDDocument.load(is);
+        PDFText2HTML stripper =new PDFText2HTML();
         PDDocument page = new PDDocument();
-        page.addPage(pdf.getPage(3));
+//        stripper.setStartPage(1);
+//        stripper.setEndPage(1);
+        page.addPage(pdf.getPage(0));
+//        String text = stripper.getText(pdf);
+//        Writer writer = new BufferedWriter(new FileWriter("./output/HTML/pdf.html"));
+//        writer.write(text);
+//        writer.close();
         Writer output = new PrintWriter("./output/HTML/pdf.html", "utf-8");
         new PDFDomTree().writeText(page, output);
         output.close();
