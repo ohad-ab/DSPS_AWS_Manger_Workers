@@ -109,22 +109,23 @@ public class Worker {
         PDDocument document = PDDocument.load(is);
         PDFRenderer pdfRenderer = new PDFRenderer(document);
         int pageCounter = 0;
-        for (PDPage page : document.getPages()) {
+//        PDPage page = document.getPage(0);
+//        for (PDPage page : document.getPages()) {
             // note that the page number parameter is zero based
             BufferedImage bim = pdfRenderer.renderImageWithDPI(pageCounter, 300, ImageType.RGB);
 
             // suffix in filename will be used as the file format
-            ImageIOUtil.writeImage(bim, "./output/Images/" + keyName + "-" + (++pageCounter) + ".png", 300);
-        }
+//            ImageIOUtil.writeImage(bim, "./output/Images/" + keyName + "-" + (++pageCounter) + ".png", 300);
+            ImageIOUtil.writeImage(bim, "./output/Images/" + keyName + ".png", 300);
+//        }
         document.close();
         is.close();
-        return "./output/Images/" + keyName + "-" + (pageCounter-1) + ".png";
+        return "./output/Images/" + keyName + ".png";
     }
 
     public static String toHTML(URL url, String keyName) throws IOException, ParserConfigurationException {
         InputStream is = url.openStream();
         PDDocument pdf = PDDocument.load(is);
-        PDFText2HTML stripper = new PDFText2HTML(); //TODO: why do we need this?
         PDDocument page = new PDDocument();
         page.addPage(pdf.getPage(0));
         Writer output = new PrintWriter("./output/HTML/"+keyName+".html", "utf-8");
@@ -141,13 +142,16 @@ public class Worker {
     public static String toText(URL url, String keyName) throws IOException {
         InputStream is = url.openStream();
         PDDocument document = PDDocument.load(is);
+        PDDocument page = new PDDocument();
+        page.addPage(document.getPage(0));
         PDFTextStripper textStripper = new PDFTextStripper();
-        String str = textStripper.getText(document);
+        String str = textStripper.getText(page);
         PrintWriter outTxt = new PrintWriter("./output/Texts/"+ keyName + ".txt");
         outTxt.println(str);
         System.out.println(str);
         outTxt.close();
         document.close();
+        page.close();
         is.close();
         return "./output/Texts/"+ keyName +".txt";
     }
