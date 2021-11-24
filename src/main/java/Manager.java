@@ -70,8 +70,6 @@ public class Manager {
                             Instance instance = reservation.instances().get(0);
                             if(!instance.tags().isEmpty() && instance.tags().get(0).value().equals("Manager") && (instance.state().nameAsString().equals("running")))
                                 ec2.terminateInstances(TerminateInstancesRequest.builder().instanceIds(instance.instanceId()).build());
-
-
                         }
                     }
 
