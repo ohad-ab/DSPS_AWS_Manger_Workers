@@ -39,25 +39,22 @@ public class Worker {
         URL url = new URL(receivedMessage[1]); //TODO: catch exeptions
         File localFile = null;
         String outputMessage = null;
-        localFile = handleOperation(operation);
+        localFile = handleOperation(operation, url);
         if (localFile != null) {
             outputMessage = uploadFileToS3(localFile) + "\t" + operation;
             sendMessage(sqsUrl, outputMessage);
         }
     }
 
-    public static File handleOperation(String operation) {
+    public static File handleOperation(String operation, URL url) throws IOException, ParserConfigurationException {
 
         switch (operation) { //TODO: catch exeptions
             case "ToImage":
                 return new File(toImage(url));
-            break;
             case "ToHTML":
                 return new File(toHTML(url));
-            break;
             case "ToText":
                 return new File(toText(url));
-            break;
             default:
                 System.err.println("Operation not defined"); //TODO: throw exception?
         }
