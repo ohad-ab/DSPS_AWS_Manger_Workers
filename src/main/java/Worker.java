@@ -6,6 +6,8 @@ import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.tools.PDFText2HTML;
 import org.apache.pdfbox.tools.imageio.ImageIOUtil;
 import org.fit.pdfdom.PDFDomTree;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
@@ -28,7 +30,8 @@ import java.util.List;
 public class Worker {
     private static final S3Client s3 = S3Client.builder().region(Region.US_EAST_1).build();
     private static final String QUEUE_NAME = "testQueue" + new Date().getTime();
-    private static final SqsClient sqs = SqsClient.builder().region(Region.US_WEST_2).build();
+    private static final SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();
+
 
 
     public static void main(String[] args) throws IOException, ParserConfigurationException {
@@ -37,24 +40,28 @@ public class Worker {
         String[] receivedMessage = waitForMessage(sqsUrl).split("\t");
         String operation = receivedMessage[0];
         URL url = new URL(receivedMessage[1]); //TODO: catch exeptions
-        File localFile = null;
-        String outputMessage = null;
-        localFile = handleOperation(operation, url);
+        String keyName = generate_keyName(receivedMessage[1]);
+        File localFile;
+        String outputMessage;
+        localFile = handleOperation(operation, url, keyName);
         if (localFile != null) {
-            outputMessage = uploadFileToS3(localFile) + "\t" + operation;
+            outputMessage = uploadFileToS3(localFile, keyName) + "\t" + operation;
             sendMessage(sqsUrl, outputMessage);
+        }
+        else{
+            System.err.println("Problem with local file");
         }
     }
 
-    public static File handleOperation(String operation, URL url) throws IOException, ParserConfigurationException {
+    public static File handleOperation(String operation, URL url, String keyName) throws IOException, ParserConfigurationException {
 
         switch (operation) { //TODO: catch exeptions
             case "ToImage":
-                return new File(toImage(url));
+                return new File(toImage(url, keyName));
             case "ToHTML":
-                return new File(toHTML(url));
+                return new File(toHTML(url, keyName));
             case "ToText":
-                return new File(toText(url));
+                return new File(toText(url, keyName));
             default:
                 System.err.println("Operation not defined"); //TODO: throw exception?
         }
@@ -64,7 +71,6 @@ public class Worker {
 
     public static String waitForMessage(String sqsurl) {
         Boolean gotMessage = false;
-        SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();
         String body = null;
         while (!gotMessage) {
             ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(sqsurl).build();
@@ -72,17 +78,32 @@ public class Worker {
             if (!messages.isEmpty()) {
                 Message message = messages.get(0);
                 body = message.body();
+                System.out.println("message received:\n" + body);
+                deleteMessage(message,sqsurl);
                 gotMessage = true;
             }
         }
         return body;
+    }
 
+    public static void deleteMessage(Message m, String sqsurl){ //TODO: handle eceptions
+        try{
+            DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder()
+                    .queueUrl(sqsurl)
+                    .receiptHandle(m.receiptHandle())
+                    .build();
+            sqs.deleteMessage(deleteMessageRequest);
+        } catch (AwsServiceException e) {
+            e.printStackTrace();
+        } catch (SdkClientException e) {
+            e.printStackTrace();
+        }
     }
 
 //    TODO: check if it's ok to return the local path (maybe we need ebs?)
 
     //    TODO: can we assume that it's only one image?
-    public static String toImage(URL url) throws IOException {
+    public static String toImage(URL url, String keyName) throws IOException {
         InputStream is = url.openStream();
 
         PDDocument document = PDDocument.load(is);
@@ -93,41 +114,42 @@ public class Worker {
             BufferedImage bim = pdfRenderer.renderImageWithDPI(pageCounter, 300, ImageType.RGB);
 
             // suffix in filename will be used as the file format
-            ImageIOUtil.writeImage(bim, "./output/Images/pdfImage" + "-" + (++pageCounter) + ".png", 300);
+            ImageIOUtil.writeImage(bim, "./output/Images/" + keyName + "-" + (++pageCounter) + ".png", 300);
         }
         document.close();
         is.close();
-        return "./output/Images/";
+        return "./output/Images/" + keyName + "-" + (pageCounter-1) + ".png";
     }
 
-    public static String toHTML(URL url) throws IOException, ParserConfigurationException {
+    public static String toHTML(URL url, String keyName) throws IOException, ParserConfigurationException {
         InputStream is = url.openStream();
         PDDocument pdf = PDDocument.load(is);
-        PDFText2HTML stripper = new PDFText2HTML();
+        PDFText2HTML stripper = new PDFText2HTML(); //TODO: why do we need this?
         PDDocument page = new PDDocument();
         page.addPage(pdf.getPage(0));
-        Writer output = new PrintWriter("./output/HTML/pdf.html", "utf-8");
+        Writer output = new PrintWriter("./output/HTML/"+keyName+".html", "utf-8");
         new PDFDomTree().writeText(page, output);
         output.close();
         page.close();
         pdf.close();
         is.close();
-        return "./output/HTML/pdf.html";
+        return "./output/HTML/"+keyName+".html";
 
 
     }
 
-    public static String toText(URL url) throws IOException {
+    public static String toText(URL url, String keyName) throws IOException {
         InputStream is = url.openStream();
         PDDocument document = PDDocument.load(is);
         PDFTextStripper textStripper = new PDFTextStripper();
         String str = textStripper.getText(document);
-        PrintWriter outTxt = new PrintWriter("./output/Texts/pdf.txt");
+        PrintWriter outTxt = new PrintWriter("./output/Texts/"+ keyName + ".txt");
         outTxt.println(str);
+        System.out.println(str);
         outTxt.close();
         document.close();
         is.close();
-        return "./output/Texts/pdf.txt";
+        return "./output/Texts/"+ keyName +".txt";
     }
 
     public static void sendMessage(String queueUrl, String message) {
@@ -148,20 +170,19 @@ public class Worker {
         }
     }
 
-    public static String uploadFileToS3(File localFile){
+    public static String uploadFileToS3(File localFile, String key_name){
         // Get s3
-//        String bucket_name = "oo-dspsp-ass1";
-        String bucket_name = "dsps-221";
+        String bucket_name = "oo-dspsp-ass1";
+//        String bucket_name = "dsps-221";
 
         // Upload input to S3
-        String key_name = generate_keyName();
         s3.putObject(PutObjectRequest.builder().bucket(bucket_name).key(key_name).build(), RequestBody.fromFile(localFile));
         return "s3://"+bucket_name+"/"+key_name;
     }
 
-    public static String generate_keyName(){//TODO: check if needed.
-        String newKey = "inputTest";
-        //TODO: Get available name
+    public static String generate_keyName(String path){//TODO: check if needed.
+        String[] splitted = path.split("/");
+        String newKey = splitted[splitted.length-1].split(".pdf")[0] + "_" + new Date().getTime();
         return  newKey;
     }
 }
