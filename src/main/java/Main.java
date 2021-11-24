@@ -37,8 +37,8 @@ import java.util.*;
 
 public class Main {
     private static final String QUEUE_NAME = "testQueue" + new Date().getTime();
-    private static S3Client s3 = S3Client.builder().region(Region.US_EAST_1).build();
-    private static SqsClient sqs=createSQS();
+    private static final S3Client s3 = S3Client.builder().region(Region.US_EAST_1).build();
+    private static final SqsClient sqs = createSQS();
     private static boolean terminate=true;
 
     public static void main(String[] args) throws Exception {
