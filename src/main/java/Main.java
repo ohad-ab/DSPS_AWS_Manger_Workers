@@ -81,23 +81,21 @@ public class Main {
 
     private static void runNewManager(Ec2Client ec2,String managerJar, String workerJar ) {
         System.out.println("Running new manager");
-        String amiId = "ami-04ad2567c9e3d7893";
+        String amiId = "ami-00e95a9222311e8ed";
         String javaInstallation = "wget --no-check-certificate --no-cookies --header \"Cookie: oraclelicense=accept-securebackup-cookie\" http://download.oracle.com/otn-pub/java/jdk/8u141-b15/336fa29ff2bb4ef291e347e091f7f4a7/jdk-8u141-linux-x64.rpm\n"+
                 "sudo yum install -y jdk-8u141-linux-x64.rpm\n";
         //sg-0a245fb00956df9ba security group ohad
         //sg-0f83f8c78a44f97a6 security group ori
-        IamInstanceProfileSpecification iam = IamInstanceProfileSpecification.builder().name("EMR_EC2_DefaultRole").build();//.name("EMR_EC2_DefaultRole").build();
+        IamInstanceProfileSpecification iam = IamInstanceProfileSpecification.builder().name("LabInstanceProfile").build();//.name("EMR_EC2_DefaultRole").build();
         RunInstancesRequest runRequest = RunInstancesRequest.builder()
                 .instanceType(InstanceType.T2_MICRO)
                 .imageId(amiId)
                 .maxCount(1)
                 .minCount(1)
-                .keyName("key2")
                 .iamInstanceProfile(iam)
-                .securityGroupIds("sg-0a245fb00956df9ba")
                 .userData(Base64.getEncoder().encodeToString(
                         ("#!/bin/bash\n"+
-                                javaInstallation+
+                                //javaInstallation+
                          //       managerJar
                                 "aws s3 cp s3://dsps-221/Manager.jar Manager.jar\n" +
                                 "java -jar Manager.jar\n"
@@ -257,19 +255,20 @@ public class Main {
         System.out.println("waiting for a message");
         while (true)
         {
-            ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(queueUrl).build();
+            ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(queueUrl).maxNumberOfMessages(10).build();
             List<Message> messages = sqs.receiveMessage(receiveMessageRequest).messages();
-            for(Message message:messages)
-            {
-                String path= message.body();
-                String[] split=path.split("/",4);
-                System.out.println(split.toString());
-                s3.getObject(GetObjectRequest.builder().bucket(split[2]).key(split[3]).build(),ResponseTransformer.toFile(new File("./output/output.html")));
-                System.out.println("message received!");
-                DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder().queueUrl(queueUrl).receiptHandle(message.receiptHandle()).build();
-                sqs.deleteMessage(deleteMessageRequest);
-                return;
-            }
+            //System.out.println(messages.size());
+            if(!messages.isEmpty())
+                for(Message message:messages)
+                {
+                    String path= message.body();
+                    String[] split=path.split("/",4);
+                    s3.getObject(GetObjectRequest.builder().bucket(split[2]).key(split[3]).build(),ResponseTransformer.toFile(new File("./output/output.html")));
+                    System.out.println("message received!");
+                    DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder().queueUrl(queueUrl).receiptHandle(message.receiptHandle()).build();
+                    sqs.deleteMessage(deleteMessageRequest);
+                    return;
+                }
         }
     }
 

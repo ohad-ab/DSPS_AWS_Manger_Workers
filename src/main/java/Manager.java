@@ -58,21 +58,23 @@ public class Manager {
 
                 ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(queueUrl).build();
                 List<Message> messages = sqs.receiveMessage(receiveMessageRequest).messages();
-                Message message = messages.get(0);
-                    String body= message.body();
-                    if(body.equals("terminate"))
-                    {
+                if(!messages.isEmpty()) {
+                    Message message = messages.get(0);
+                    String body = message.body();
+                    if (body.equals("terminate")) {
                         System.out.println("ee");
                         terminate = true;
                         Ec2Client ec2 = Ec2Client.create();
                         List<Reservation> reservations = ec2.describeInstances().reservations();
-                        for (Reservation reservation:reservations) {
+                        for (Reservation reservation : reservations) {
                             Instance instance = reservation.instances().get(0);
-                            if(!instance.tags().isEmpty() && instance.tags().get(0).value().equals("Manager") && (instance.state().nameAsString().equals("running")))
+                            if (!instance.tags().isEmpty() && instance.tags().get(0).value().equals("test") && (instance.state().nameAsString().equals("running"))) {
                                 ec2.terminateInstances(TerminateInstancesRequest.builder().instanceIds(instance.instanceId()).build());
+                                System.out.println("xx");
+                            }
                         }
                     }
-
+                }
 
 
             }
