@@ -47,6 +47,7 @@ public class Worker {
         if (localFile != null) {
             outputMessage = uploadFileToS3(localFile, keyName) + "\t" + operation;
             sendMessage(sqsUrl, outputMessage);
+            localFile.delete();
         }
         else{
             System.err.println("Problem with local file");
@@ -116,11 +117,11 @@ public class Worker {
 
             // suffix in filename will be used as the file format
 //            ImageIOUtil.writeImage(bim, "./output/Images/" + keyName + "-" + (++pageCounter) + ".png", 300);
-            ImageIOUtil.writeImage(bim, "./output/Images/" + keyName + ".png", 300);
+            ImageIOUtil.writeImage(bim, "./" + keyName + ".png", 300);
 //        }
         document.close();
         is.close();
-        return "./output/Images/" + keyName + ".png";
+        return "./" + keyName + ".png";
     }
 
     public static String toHTML(URL url, String keyName) throws IOException, ParserConfigurationException {
@@ -128,13 +129,13 @@ public class Worker {
         PDDocument pdf = PDDocument.load(is);
         PDDocument page = new PDDocument();
         page.addPage(pdf.getPage(0));
-        Writer output = new PrintWriter("./output/HTML/"+keyName+".html", "utf-8");
+        Writer output = new PrintWriter("./"+keyName+".html", "utf-8");
         new PDFDomTree().writeText(page, output);
         output.close();
         page.close();
         pdf.close();
         is.close();
-        return "./output/HTML/"+keyName+".html";
+        return "./"+keyName+".html";
 
 
     }
@@ -146,14 +147,14 @@ public class Worker {
         page.addPage(document.getPage(0));
         PDFTextStripper textStripper = new PDFTextStripper();
         String str = textStripper.getText(page);
-        PrintWriter outTxt = new PrintWriter("./output/Texts/"+ keyName + ".txt");
+        PrintWriter outTxt = new PrintWriter("./"+ keyName + ".txt");
         outTxt.println(str);
         System.out.println(str);
         outTxt.close();
         document.close();
         page.close();
         is.close();
-        return "./output/Texts/"+ keyName +".txt";
+        return "./"+ keyName +".txt";
     }
 
     public static void sendMessage(String queueUrl, String message) {
@@ -167,7 +168,7 @@ public class Worker {
                     .queueUrl(queueUrl)
                     .messageBody(message)
                     .build());
-
+            System.out.println("\nmessage sent:\n" + message);
         } catch (SqsException e) {
             System.err.println(e.awsErrorDetails().errorMessage());
 //            System.exit(1); //TODO: exception?
@@ -181,6 +182,7 @@ public class Worker {
 
         // Upload input to S3
         s3.putObject(PutObjectRequest.builder().bucket(bucket_name).key(key_name).build(), RequestBody.fromFile(localFile));
+        System.out.println("\nfile uploaded to:\n" + "s3://"+bucket_name+"/"+key_name);
         return "s3://"+bucket_name+"/"+key_name;
     }
 
