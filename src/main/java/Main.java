@@ -45,7 +45,7 @@ public class Main {
         // Get data from args
         File input = new File(args[0]);
 //        File output = new File(args[1]);
-//        int workerRatio = Integer.parseInt(args[2]);
+        int workerRatio = Integer.parseInt(args[2]);
 //        Boolean terminate = args.length == 4 && args[3].equals("terminate"); //TODO: Check with Moshe, What is 'terminate' type?
 
         // Get s3
@@ -59,7 +59,7 @@ public class Main {
         //create sqs
 
     //    S3Object obj = s3.getObject(GetObjectRequest.builder().build());
-    //    sendMessage(sqs,"s3://"+bucket_name+"/"+key_name);
+        sendMessage(sqs,"s3://"+bucket_name+"/"+key_name+"\t"+workerRatio);
         GetQueueUrlResponse getQueueUrlResponse =
                 sqs.getQueueUrl(GetQueueUrlRequest.builder().queueName(QUEUE_NAME).build());
         String queueUrl = getQueueUrlResponse.queueUrl();
