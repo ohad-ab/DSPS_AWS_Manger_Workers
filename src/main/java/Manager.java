@@ -199,13 +199,17 @@ public class Manager {
                     messagecount++;
                 }
                 SqsClient workerSQS = SqsClient.builder().region(Region.US_EAST_1).build();
-                String workersManagerSQSurl="";//TODO add a url
+                        String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/445821044214/requests_queue"; //Ori
+                        String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/445821044214/answers_queue"; //Ori
+
+                //        String requestsSqsUrl = ""; //Ohad
+                //        String answersSqsUr = ""; //Ohad
                 SendMessageRequest send_msg_request;
                 for (String messagesToWorker : messagesToWorkers)
-                    SendMessageRequest.builder().queueUrl(workersManagerSQSurl).messageBody(messagesToWorker).build();
+                    SendMessageRequest.builder().queueUrl(requestsSqsUrl).messageBody(messagesToWorker).build();
                 int numOfWorkers = messagecount/ratio + (messagecount%ratio != 0?1:0);
                 for(int i = 0;i<numOfWorkers; i++)
-                    runNewWorker(workersManagerSQSurl);
+                    runNewWorker(requestsSqsUrl, answersSqsUr);
 
             } catch (Exception e) {
             }
