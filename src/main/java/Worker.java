@@ -39,9 +39,9 @@ public class Worker {
 //        Just an idea, we don't have to do it this way
         String requestsSqs = args[0];
         String answersSqs = args[1];
-        //1 - https://sqs.us-east-1.amazonaws.com/445821044214/testQueue1637219177227
-        //2 - https://sqs.us-east-1.amazonaws.com/445821044214/requests_queue
-        //3 - https://sqs.us-east-1.amazonaws.com/445821044214/answers_queue
+        //Ori
+        //requests SQS - https://sqs.us-east-1.amazonaws.com/445821044214/requests_queue
+        //answers SQS - https://sqs.us-east-1.amazonaws.com/445821044214/answers_queue
         while (true) {
             String[] receivedMessage = waitForMessage(requestsSqs).split("\t");
             String operation = receivedMessage[0];

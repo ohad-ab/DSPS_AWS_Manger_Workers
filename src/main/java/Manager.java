@@ -30,9 +30,13 @@ public class Manager {
         System.out.println("Manager Started");
         String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/LOCAL-MANAGER";
         waitForMessages(localManagerSQSurl);
-        //"https://sqs.us-east-1.amazonaws.com/445821044214/testQueue1637219177227"; //Ori
-        
-//        runNewWorker(SqsUrl2);
+
+//        String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/445821044214/requests_queue"; //Ori
+//        String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/445821044214/answers_queue"; //Ori
+
+//        String requestsSqsUrl = ""; //Ohad
+//        String answersSqsUr = ""; //Ohad
+//        runNewWorker(requestsSqsUrl, answersSqsUr);
 
 
 //        LinkedBlockingQueue<InFile> queue = new LinkedBlockingQueue<>();
@@ -98,7 +102,7 @@ public class Manager {
     }
 
 
-    private static void runNewWorker(String sqsUrl) {
+    private static void runNewWorker(String requestsSQS, String answersSQS) {
         Ec2Client ec2 = Ec2Client.create();
         System.out.println("Running new worker #" + workerCount);
         String amiId = "ami-00e95a9222311e8ed";
@@ -130,7 +134,7 @@ public class Manager {
                                 fileSystemInstallation +
                                 //       workerJar
                                 "aws s3 cp s3://oo-dspsp-ass1/Worker.jar Worker.jar\n" + //Ori S3
-                                "java -jar Worker.jar " + sqsUrl + "\n"
+                                "java -jar Worker.jar " + requestsSQS + " " + answersSQS + "\n"
                         ).getBytes()))
                 .build();
 //        String reservation_id = ec2.describeInstances().reservations().get(0).instances().get(0).instanceId();
