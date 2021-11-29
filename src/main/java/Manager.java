@@ -31,7 +31,8 @@ public class Manager {
         String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/LOCAL-MANAGER";
         waitForMessages(localManagerSQSurl);
         //"https://sqs.us-east-1.amazonaws.com/445821044214/testQueue1637219177227"; //Ori
-       // runNewWorker(SqsUrl2);
+        
+//        runNewWorker(SqsUrl2);
 
 
 //        LinkedBlockingQueue<InFile> queue = new LinkedBlockingQueue<>();

@@ -15,6 +15,7 @@ import software.amazon.awssdk.services.ec2.model.Instance;
 import software.amazon.awssdk.services.ec2.model.Reservation;
 import software.amazon.awssdk.services.ec2.model.TerminateInstancesRequest;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
@@ -36,21 +37,27 @@ public class Worker {
 
     public static void main(String[] args) throws IOException, ParserConfigurationException {
 //        Just an idea, we don't have to do it this way
-        String sqsUrl = args[0];
-        String[] receivedMessage = waitForMessage(sqsUrl).split("\t");
-        String operation = receivedMessage[0];
-        URL url = new URL(receivedMessage[1]); //TODO: catch exeptions
-        String keyName = generate_keyName(receivedMessage[1]);
-        File localFile;
-        String outputMessage;
-        localFile = handleOperation(operation, url, keyName);
-        if (localFile != null) {
-            outputMessage = uploadFileToS3(localFile, keyName) + "\t" + operation;
-            sendMessage(sqsUrl, outputMessage);
-            localFile.delete();
-        }
-        else{
-            System.err.println("Problem with local file");
+        String requestsSqs = args[0];
+        String answersSqs = args[1];
+        //1 - https://sqs.us-east-1.amazonaws.com/445821044214/testQueue1637219177227
+        //2 - https://sqs.us-east-1.amazonaws.com/445821044214/requests_queue
+        //3 - https://sqs.us-east-1.amazonaws.com/445821044214/answers_queue
+        while (true) {
+            String[] receivedMessage = waitForMessage(requestsSqs).split("\t");
+            String operation = receivedMessage[0];
+            URL url = new URL(receivedMessage[1]); //TODO: catch exeptions
+            System.out.println("----check-----\n" +url);
+            String keyName = generate_keyName(receivedMessage[1]);
+            File localFile;
+            String outputMessage;
+            localFile = handleOperation(operation, url, keyName);
+            if (localFile != null) {
+                outputMessage = url + uploadFileToS3(localFile, keyName) + "\t" + operation;
+                sendMessage(answersSqs, outputMessage);
+                localFile.delete();
+            } else {
+                System.err.println("Problem with local file");
+            }
         }
     }
 
@@ -181,7 +188,11 @@ public class Worker {
 //        String bucket_name = "dsps-221";
 
         // Upload input to S3
-        s3.putObject(PutObjectRequest.builder().bucket(bucket_name).key(key_name).build(), RequestBody.fromFile(localFile));
+        s3.putObject(PutObjectRequest.builder()
+                .bucket(bucket_name)
+                .key(key_name)
+//                .acl(ObjectCannedACL.PUBLIC_READ) //Access control list
+                .build(), RequestBody.fromFile(localFile));
         System.out.println("\nfile uploaded to:\n" + "s3://"+bucket_name+"/"+key_name);
         return "s3://"+bucket_name+"/"+key_name;
     }
