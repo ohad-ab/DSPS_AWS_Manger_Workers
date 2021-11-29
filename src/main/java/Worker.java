@@ -1,19 +1,14 @@
 import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.text.PDFTextStripper;
-import org.apache.pdfbox.tools.PDFText2HTML;
 import org.apache.pdfbox.tools.imageio.ImageIOUtil;
 import org.fit.pdfdom.PDFDomTree;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.ec2.Ec2Client;
-import software.amazon.awssdk.services.ec2.model.Instance;
-import software.amazon.awssdk.services.ec2.model.Reservation;
-import software.amazon.awssdk.services.ec2.model.TerminateInstancesRequest;
+
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -30,12 +25,12 @@ import java.util.List;
 
 public class Worker {
     private static final S3Client s3 = S3Client.builder().region(Region.US_EAST_1).build();
-    private static final String QUEUE_NAME = "testQueue" + new Date().getTime();
+//    private static final String QUEUE_NAME = "testQueue" + new Date().getTime();
     private static final SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();
 
 
 
-    public static void main(String[] args) throws IOException, ParserConfigurationException {
+    public static void main(String[] args){
 //        Just an idea, we don't have to do it this way
         String requestsSqs = args[0];
         String answersSqs = args[1];
@@ -45,23 +40,38 @@ public class Worker {
         while (true) {
             String[] receivedMessage = waitForMessage(requestsSqs).split("\t");
             String operation = receivedMessage[0];
-            URL url = new URL(receivedMessage[1]); //TODO: catch exeptions
-            System.out.println("----check-----\n" +url);
-            String keyName = generate_keyName(receivedMessage[1]);
-            File localFile;
-            String outputMessage;
-            localFile = handleOperation(operation, url, keyName);
-            if (localFile != null) {
-                outputMessage = url + uploadFileToS3(localFile, keyName) + "\t" + operation;
+            try {
+                URL url = new URL(receivedMessage[1]);
+                String keyName = generate_keyName(receivedMessage[1]);
+                File localFile;
+                String outputMessage;
+                localFile = handleOperation(operation, url, keyName);
+                outputMessage = url + "\t" + uploadFileToS3(localFile, keyName) + "\t" + operation;
                 sendMessage(answersSqs, outputMessage);
                 localFile.delete();
-            } else {
-                System.err.println("Problem with local file");
+
+            } catch (Exception e) {
+                String errorMessage = "";
+                if (e instanceof MalformedURLException){
+                            errorMessage = "Malformed URL error" ;
+                }
+                else if (e instanceof ParserConfigurationException){
+                    errorMessage = "Parser Configuration error" ;
+                }
+                else if (e instanceof IOException){
+                    errorMessage = "IO error" ;
+                }
+                else if (e instanceof ProblemInProcessException){
+                    errorMessage = e.getMessage();
+                }
+                String outputMessage = receivedMessage[1] + "\tException\t" + errorMessage + "\t" + operation;;
+                sendMessage(answersSqs, outputMessage);
             }
+
         }
     }
 
-    public static File handleOperation(String operation, URL url, String keyName) throws IOException, ParserConfigurationException {
+    public static File handleOperation(String operation, URL url, String keyName) throws IOException, ParserConfigurationException, ProblemInProcessException {
 
         switch (operation) { //TODO: catch exeptions
             case "ToImage":
@@ -72,8 +82,8 @@ public class Worker {
                 return new File(toText(url, keyName));
             default:
                 System.err.println("Operation not defined"); //TODO: throw exception?
+                throw new ProblemInProcessException("Wrong operation");
         }
-        return null;
     }
 
 
@@ -94,21 +104,18 @@ public class Worker {
         return body;
     }
 
-    public static void deleteMessage(Message m, String sqsurl){ //TODO: handle eceptions
+    public static void deleteMessage(Message m, String sqsurl){ //TODO: handle exceptions???
         try{
             DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder()
                     .queueUrl(sqsurl)
                     .receiptHandle(m.receiptHandle())
                     .build();
             sqs.deleteMessage(deleteMessageRequest);
-        } catch (AwsServiceException e) {
-            e.printStackTrace();
-        } catch (SdkClientException e) {
+        } catch (AwsServiceException | SdkClientException e) {
             e.printStackTrace();
         }
     }
 
-//    TODO: check if it's ok to return the local path (maybe we need ebs?)
 
     //    TODO: can we assume that it's only one image?
     public static String toImage(URL url, String keyName) throws IOException {
@@ -191,15 +198,30 @@ public class Worker {
         s3.putObject(PutObjectRequest.builder()
                 .bucket(bucket_name)
                 .key(key_name)
-//                .acl(ObjectCannedACL.PUBLIC_READ) //Access control list
+                .acl(ObjectCannedACL.PUBLIC_READ) //Access control list
                 .build(), RequestBody.fromFile(localFile));
-        System.out.println("\nfile uploaded to:\n" + "s3://"+bucket_name+"/"+key_name);
-        return "s3://"+bucket_name+"/"+key_name;
+//        System.out.println("\nfile uploaded to:\n" + "s3://"+bucket_name+"/"+key_name);
+        String newUrl = "https://"+bucket_name+".s3.amazonaws.com/"+key_name;
+        System.out.println("\nfile uploaded to:\n" +newUrl );
+
+        return newUrl;
+//        return "s3://"+bucket_name+"/"+key_name;
     }
 
     public static String generate_keyName(String path){//TODO: check if needed.
         String[] splitted = path.split("/");
         String newKey = splitted[splitted.length-1].split(".pdf")[0] + "_" + new Date().getTime();
         return  newKey;
+    }
+}
+class ProblemInProcessException extends Exception
+{
+    // Parameterless Constructor
+    public ProblemInProcessException() {}
+
+    // Constructor that accepts a message
+    public ProblemInProcessException(String message)
+    {
+        super(message);
     }
 }
