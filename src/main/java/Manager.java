@@ -1,34 +1,34 @@
 
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.*;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 
 public class Manager {
     private static boolean terminate = false;
     public static int activeWorker = 0;
     private LinkedBlockingQueue<InFile> queue;
     public static int workerCount = 0;
+    public static String bucket = "dsps-221";
+    public static String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/LOCAL-MANAGER";
+
 
     public static void main(String[] args) {
         System.out.println("Manager Started");
-        String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/LOCAL-MANAGER";
         waitForMessages(localManagerSQSurl);
 
 //        String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/445821044214/requests_queue"; //Ori
@@ -152,61 +152,74 @@ public class Manager {
         List<Instance> instances = response.instances();
         System.out.println(instances);
     }
-public static File generateHTMLFile(String answersSqsUr){
-        String startOfHTML = "<!DOCTYPE html>\n" +
-                "<html lang=\"en\">\n" +
-                "\n" +
-                "<head>\n" +
-                "    <meta charset=\"UTF-8\">\n" +
-                "    <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n" +
-                "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
-                "    <title>PDF Converter</title>\n" +
-                "    <style>\n" +
-                "        table.unstyledTable {\n" +
-                "            border: 1px solid #000000;\n" +
-                "        }\n" +
-                "\n" +
-                "        table.unstyledTable td,\n" +
-                "        table.unstyledTable th {\n" +
-                "            border: 1px solid #AAAAAA;\n" +
-                "        }\n" +
-                "\n" +
-                "        table.unstyledTable thead {\n" +
-                "            background: #DDDDDD;\n" +
-                "        }\n" +
-                "\n" +
-                "        table.unstyledTable thead th {\n" +
-                "            font-weight: normal;\n" +
-                "            height: max-content;\n" +
-                "            width: max-content;\n" +
-                "        }\n" +
-                "\n" +
-                "    </style>\n" +
-                "</head>\n" +
-                "\n" +
-                "<body>\n" +
-                "    <h1 style=\"color: #5e9ca0;\">Ohad and Ori PDF converter&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</h1>\n" +
-                "    <h2 style=\"color: #2e6c80;\">Output:</h2>\n" +
-                "    <table class=\"unstyledTable\">\n" +
-                "        <thead>\n" +
-                "            <tr>\n" +
-                "                <th><strong>Operation</strong></th>\n" +
-                "                <th style=\"height: 18px; width: 221px;\"><strong>Input File</strong></th>\n" +
-                "                <th style=\"height: 18px; width: 179px;\"><strong>Output File</strong></th>\n" +
-                "            </tr>\n" +
-                "        </thead>\n" +
-                "        <tbody>";
-        String endOfHTML = "</tbody>\n" +
-                "    </table>\n" +
-                "</body>\n" +
-                "</html>";
-    SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();
-    ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(answersSqsUr).build();
-    List<Message> messages = sqs.receiveMessage(receiveMessageRequest).messages();
-        for(Message m : messages){
-
+    private static File createOutput(List<String>messages)
+    {
+        PrintWriter  outTxt = null;
+        try {
+          outTxt = new PrintWriter("./output.txt");
+          for(String message: messages)
+              outTxt.println(message);
+          outTxt.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
         }
+        return new File("./output.txt");
     }
+//public static File generateHTMLFile(String answersSqsUr){
+//        String startOfHTML = "<!DOCTYPE html>\n" +
+//                "<html lang=\"en\">\n" +
+//                "\n" +
+//                "<head>\n" +
+//                "    <meta charset=\"UTF-8\">\n" +
+//                "    <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n" +
+//                "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
+//                "    <title>PDF Converter</title>\n" +
+//                "    <style>\n" +
+//                "        table.unstyledTable {\n" +
+//                "            border: 1px solid #000000;\n" +
+//                "        }\n" +
+//                "\n" +
+//                "        table.unstyledTable td,\n" +
+//                "        table.unstyledTable th {\n" +
+//                "            border: 1px solid #AAAAAA;\n" +
+//                "        }\n" +
+//                "\n" +
+//                "        table.unstyledTable thead {\n" +
+//                "            background: #DDDDDD;\n" +
+//                "        }\n" +
+//                "\n" +
+//                "        table.unstyledTable thead th {\n" +
+//                "            font-weight: normal;\n" +
+//                "            height: max-content;\n" +
+//                "            width: max-content;\n" +
+//                "        }\n" +
+//                "\n" +
+//                "    </style>\n" +
+//                "</head>\n" +
+//                "\n" +
+//                "<body>\n" +
+//                "    <h1 style=\"color: #5e9ca0;\">Ohad and Ori PDF converter&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</h1>\n" +
+//                "    <h2 style=\"color: #2e6c80;\">Output:</h2>\n" +
+//                "    <table class=\"unstyledTable\">\n" +
+//                "        <thead>\n" +
+//                "            <tr>\n" +
+//                "                <th><strong>Operation</strong></th>\n" +
+//                "                <th style=\"height: 18px; width: 221px;\"><strong>Input File</strong></th>\n" +
+//                "                <th style=\"height: 18px; width: 179px;\"><strong>Output File</strong></th>\n" +
+//                "            </tr>\n" +
+//                "        </thead>\n" +
+//                "        <tbody>";
+//        String endOfHTML = "</tbody>\n" +
+//                "    </table>\n" +
+//                "</body>\n" +
+//                "</html>";
+//    SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();
+//    ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(answersSqsUr).build();
+//    List<Message> messages = sqs.receiveMessage(receiveMessageRequest).messages();
+//        for(Message m : messages){
+//
+//        }
+//    }
 
 //        try {
 //            CreateQueueRequest request = CreateQueueRequest.builder()
@@ -231,16 +244,16 @@ public static File generateHTMLFile(String answersSqsUr){
 
 
     static class Request implements Runnable {
-        private String mesaage;
+        private String localMessage;
 
-        public Request(String message) {
-            this.mesaage = message;
+        public Request(String localMessage) {
+            this.localMessage = localMessage;
         }
 
         @Override
         public void run() {
             try {
-                String[] splitMessage = mesaage.split("\t");
+                String[] splitMessage = localMessage.split("\t");
                 String[] splitURL = splitMessage[0].split("/");
                 int ratio = Integer.parseInt(splitMessage[1]);
                 S3Client s3 = S3Client.builder().region(Region.US_EAST_1).build();
@@ -252,7 +265,7 @@ public static File generateHTMLFile(String answersSqsUr){
                     messagesToWorkers.add(reader.readLine());
                     messagecount++;
                 }
-                SqsClient workerSQS = SqsClient.builder().region(Region.US_EAST_1).build();
+                SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();
                 String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/445821044214/requests_queue"; //Ori
                 String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/445821044214/answers_queue"; //Ori
 
@@ -264,6 +277,30 @@ public static File generateHTMLFile(String answersSqsUr){
                 int numOfWorkers = messagecount / ratio + (messagecount % ratio != 0 ? 1 : 0);
                 for (int i = 0; i < numOfWorkers; i++)
                     runNewWorker(requestsSqsUrl, answersSqsUr);
+
+                ArrayList<String> messagesToManager = new ArrayList<>();
+
+                while (true)
+                {
+                    ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(answersSqsUr).build();
+                    List<Message> messages = sqs.receiveMessage(receiveMessageRequest).messages();
+                    //System.out.println(messages.size());
+                    if(!messages.isEmpty())
+                        for(Message message:messages)
+                        {
+                            messagesToManager.add(message.body());
+                            System.out.println("message received!");
+                            DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder().queueUrl(answersSqsUr).receiptHandle(message.receiptHandle()).build();
+                            sqs.deleteMessage(deleteMessageRequest);
+                            messagecount--;
+                        }
+                    if(messagecount == 0)
+                        break;
+                }
+                File output = createOutput(messagesToManager);
+                s3.putObject(PutObjectRequest.builder().bucket(bucket).key("output").build(), RequestBody.fromFile(output));
+                send_msg_request=SendMessageRequest.builder().queueUrl(localManagerSQSurl).messageBody("s3://"+bucket+"/"+"output").build();
+                sqs.sendMessage(send_msg_request);
 
             } catch (Exception e) {
             }
