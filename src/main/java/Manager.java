@@ -29,7 +29,11 @@ public class Manager {
 
     public static void main(String[] args) {
         System.out.println("Manager Started");
-        waitForMessages(localManagerSQSurl);
+        //waitForMessages(localManagerSQSurl);
+        List<String> list = new ArrayList<>();
+        list.add("http://www.elizabar.com/assets/pdfs/pascater11.pdf\thttps://bucket_name.s3.amazonaws.com/key_name\ttoText");
+        createOutput(list);
+
 
 //        String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/445821044214/requests_queue"; //Ori
 //        String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/445821044214/answers_queue"; //Ori
@@ -206,7 +210,8 @@ public class Manager {
         try {
           outHTML = new PrintWriter("./output.html");
           for(String message: messages)
-              addedRows.concat(generateHTMLTableRow(message));
+            //  addedRows.concat(generateHTMLTableRow(message));
+              addedRows=addedRows+generateHTMLTableRow(message);
           outHTML.println(startOfHTML + addedRows + endOfHTML);
           outHTML.close();
         } catch (FileNotFoundException e) {
@@ -283,7 +288,7 @@ public static String generateHTMLTableRow(String message){
                 //        String answersSqsUr = ""; //Ohad
                 SendMessageRequest send_msg_request;
                 for (String messagesToWorker : messagesToWorkers)
-                    SendMessageRequest.builder().queueUrl(requestsSqsUrl).messageBody(messagesToWorker).build();
+                    sqs.sendMessage(SendMessageRequest.builder().queueUrl(requestsSqsUrl).messageBody(messagesToWorker).build());
                 int numOfWorkers = messagecount / ratio + (messagecount % ratio != 0 ? 1 : 0);
                 for (int i = 0; i < numOfWorkers; i++)
                     runNewWorker(requestsSqsUrl, answersSqsUr);
