@@ -32,6 +32,7 @@ public class Manager {
         //waitForMessages(localManagerSQSurl);
         List<String> list = new ArrayList<>();
         list.add("http://www.elizabar.com/assets/pdfs/pascater11.pdf\thttps://bucket_name.s3.amazonaws.com/key_name\ttoText");
+        list.add("http://www.elizabar.com/assets/pdfs/pascater12.pdf\thttps://bucket_name.s3.amazonaws.com/key_name2\ttoImage");
         createOutput(list);
 
 
@@ -231,8 +232,8 @@ public static String generateHTMLTableRow(String message){
 
         return "\n<tr>\n" +
         "<td>"+ operation + "</td>\n" +
-        "<td> <a href=\""+ originalUrl +">" + originalName +"</a></td>\n" +
-        "<td><a href=\""+ newUrl + ">\"" + newName + "</a></td>\n" +
+        "<td> <a href="+ originalUrl +">" + originalName +"</a></td>\n" +
+        "<td><a href="+ newUrl + ">" + newName + "</a></td>\n" +
         "</tr>\n";
     }
 
