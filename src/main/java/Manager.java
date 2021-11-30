@@ -165,61 +165,61 @@ public class Manager {
         }
         return new File("./output.txt");
     }
-public static File generateHTMLFile(String answersSqsUr){
-        String startOfHTML = "<!DOCTYPE html>\n" +
-                "<html lang=\"en\">\n" +
-                "\n" +
-                "<head>\n" +
-                "    <meta charset=\"UTF-8\">\n" +
-                "    <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n" +
-                "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
-                "    <title>PDF Converter</title>\n" +
-                "    <style>\n" +
-                "        table.unstyledTable {\n" +
-                "            border: 1px solid #000000;\n" +
-                "        }\n" +
-                "\n" +
-                "        table.unstyledTable td,\n" +
-                "        table.unstyledTable th {\n" +
-                "            border: 1px solid #AAAAAA;\n" +
-                "        }\n" +
-                "\n" +
-                "        table.unstyledTable thead {\n" +
-                "            background: #DDDDDD;\n" +
-                "        }\n" +
-                "\n" +
-                "        table.unstyledTable thead th {\n" +
-                "            font-weight: normal;\n" +
-                "            height: max-content;\n" +
-                "            width: max-content;\n" +
-                "        }\n" +
-                "\n" +
-                "    </style>\n" +
-                "</head>\n" +
-                "\n" +
-                "<body>\n" +
-                "    <h1 style=\"color: #5e9ca0;\">Ohad and Ori PDF converter&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</h1>\n" +
-                "    <h2 style=\"color: #2e6c80;\">Output:</h2>\n" +
-                "    <table class=\"unstyledTable\">\n" +
-                "        <thead>\n" +
-                "            <tr>\n" +
-                "                <th><strong>Operation</strong></th>\n" +
-                "                <th style=\"height: 18px; width: 221px;\"><strong>Input File</strong></th>\n" +
-                "                <th style=\"height: 18px; width: 179px;\"><strong>Output File</strong></th>\n" +
-                "            </tr>\n" +
-                "        </thead>\n" +
-                "        <tbody>";
-        String endOfHTML = "</tbody>\n" +
-                "    </table>\n" +
-                "</body>\n" +
-                "</html>";
-    SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();
-    ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(answersSqsUr).build();
-    List<Message> messages = sqs.receiveMessage(receiveMessageRequest).messages();
-        for(Message m : messages){
-
-        }
-    }
+//public static File generateHTMLFile(String answersSqsUr){
+//        String startOfHTML = "<!DOCTYPE html>\n" +
+//                "<html lang=\"en\">\n" +
+//                "\n" +
+//                "<head>\n" +
+//                "    <meta charset=\"UTF-8\">\n" +
+//                "    <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n" +
+//                "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
+//                "    <title>PDF Converter</title>\n" +
+//                "    <style>\n" +
+//                "        table.unstyledTable {\n" +
+//                "            border: 1px solid #000000;\n" +
+//                "        }\n" +
+//                "\n" +
+//                "        table.unstyledTable td,\n" +
+//                "        table.unstyledTable th {\n" +
+//                "            border: 1px solid #AAAAAA;\n" +
+//                "        }\n" +
+//                "\n" +
+//                "        table.unstyledTable thead {\n" +
+//                "            background: #DDDDDD;\n" +
+//                "        }\n" +
+//                "\n" +
+//                "        table.unstyledTable thead th {\n" +
+//                "            font-weight: normal;\n" +
+//                "            height: max-content;\n" +
+//                "            width: max-content;\n" +
+//                "        }\n" +
+//                "\n" +
+//                "    </style>\n" +
+//                "</head>\n" +
+//                "\n" +
+//                "<body>\n" +
+//                "    <h1 style=\"color: #5e9ca0;\">Ohad and Ori PDF converter&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</h1>\n" +
+//                "    <h2 style=\"color: #2e6c80;\">Output:</h2>\n" +
+//                "    <table class=\"unstyledTable\">\n" +
+//                "        <thead>\n" +
+//                "            <tr>\n" +
+//                "                <th><strong>Operation</strong></th>\n" +
+//                "                <th style=\"height: 18px; width: 221px;\"><strong>Input File</strong></th>\n" +
+//                "                <th style=\"height: 18px; width: 179px;\"><strong>Output File</strong></th>\n" +
+//                "            </tr>\n" +
+//                "        </thead>\n" +
+//                "        <tbody>";
+//        String endOfHTML = "</tbody>\n" +
+//                "    </table>\n" +
+//                "</body>\n" +
+//                "</html>";
+//    SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();
+//    ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(answersSqsUr).build();
+//    List<Message> messages = sqs.receiveMessage(receiveMessageRequest).messages();
+//        for(Message m : messages){
+//
+//        }
+//    }
 
 //        try {
 //            CreateQueueRequest request = CreateQueueRequest.builder()
@@ -265,7 +265,7 @@ public static File generateHTMLFile(String answersSqsUr){
                     messagesToWorkers.add(reader.readLine());
                     messagecount++;
                 }
-                SqsClient workerSQS = SqsClient.builder().region(Region.US_EAST_1).build();
+                SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();
                 String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/445821044214/requests_queue"; //Ori
                 String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/445821044214/answers_queue"; //Ori
 
