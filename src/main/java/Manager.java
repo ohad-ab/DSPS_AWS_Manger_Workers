@@ -1,4 +1,3 @@
-
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
 import software.amazon.awssdk.regions.Region;
@@ -11,17 +10,11 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
 
 import java.io.*;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Date;
-import java.util.List;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.*;
 
 public class Manager {
     private static boolean terminate = false;
     public static int activeWorker = 0;
-    private LinkedBlockingQueue<InFile> queue;
     public static int workerCount = 0;
     public static String bucket = "dsps-221";
     public static String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/LOCAL-MANAGER";
@@ -29,18 +22,15 @@ public class Manager {
 
     public static void main(String[] args) {
         System.out.println("Manager Started");
-        //waitForMessages(localManagerSQSurl);
-        List<String> list = new ArrayList<>();
-        list.add("http://www.elizabar.com/assets/pdfs/pascater11.pdf\thttps://bucket_name.s3.amazonaws.com/key_name\ttoText");
-        list.add("http://www.elizabar.com/assets/pdfs/pascater12.pdf\thttps://bucket_name.s3.amazonaws.com/key_name2\ttoImage");
-        createOutput(list);
+        waitForMessages(localManagerSQSurl);
+
 
 
 //        String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/445821044214/requests_queue"; //Ori
 //        String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/445821044214/answers_queue"; //Ori
 
-//        String requestsSqsUrl = ""; //Ohad
-//        String answersSqsUr = ""; //Ohad
+//        String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/150025664389/requestsSqs"; //Ohad
+//        String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/150025664389/answersSqs"; //Ohad
 //        runNewWorker(requestsSqsUrl, answersSqsUr);
 
 
@@ -75,37 +65,54 @@ public class Manager {
 //                    .build();
 //            sqs.sendMessage(send_msg_request);
             while (!terminate) {
-                ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(localManagerSQSurl).build();
+                ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(localManagerSQSurl).messageAttributeNames("Output").visibilityTimeout(0).build();
                 List<Message> messages = sqs.receiveMessage(receiveMessageRequest).messages();
                 if (!messages.isEmpty()) {
                     Message message = messages.get(0);
                     String body = message.body();
                     if (body.equals("terminate")) {
                         terminate = true;
-                        Ec2Client ec2 = Ec2Client.create();
-                        List<Reservation> reservations = ec2.describeInstances().reservations();
-                        for (Reservation reservation : reservations) {
-                            Instance instance = reservation.instances().get(0);
-                            if (!instance.tags().isEmpty() && instance.tags().get(0).value().equals("test") && (instance.state().nameAsString().equals("running"))) {
-                                ec2.terminateInstances(TerminateInstancesRequest.builder().instanceIds(instance.instanceId()).build());
-                            }
-                        }
-                    } else {
+                        DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder().queueUrl(localManagerSQSurl).receiptHandle(message.receiptHandle()).build();
+                        DeleteMessageResponse response= sqs.deleteMessage(deleteMessageRequest);
+                        System.out.println("terminate");
+                        processTerminate("Worker");
+                        processTerminate("Manager");
+                    } else if(!message.messageAttributes().containsKey("Output")) {
+                        System.out.println("input received "+message.body());
+                        DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder().queueUrl(localManagerSQSurl).receiptHandle(message.receiptHandle()).build();
+                        DeleteMessageResponse response= sqs.deleteMessage(deleteMessageRequest);
+                        System.out.println(response.toString());
                         Request request = new Request(body);
                         Thread thread = new Thread(request);
-                        thread.run();
+                        thread.start();
+                        //thread.join();
                     }
                 }
 
 
             }
 
-        } catch (SqsException e) {
-            System.err.println(e.awsErrorDetails().errorMessage());
+        } catch (SqsException /*| InterruptedException*/ e) {
+            //System.err.println(e.awsErrorDetails().errorMessage());
+            e.printStackTrace();
             System.exit(1);
         }
     }
 
+    private  static  void processTerminate(String name) {
+        Ec2Client ec2 = Ec2Client.create();
+        List<Reservation> reservations = ec2.describeInstances().reservations();
+        for (Reservation reservation : reservations) {
+            Instance instance = reservation.instances().get(0);
+            if (!instance.tags().isEmpty()) {
+                if(instance.tags().get(1).value().equals(name) && (instance.state().nameAsString().equals("running"))) {
+                    ec2.terminateInstances(TerminateInstancesRequest.builder().instanceIds(instance.instanceId()).build());
+                    System.out.println("terminate "+name);
+                }
+            }
+
+        }
+    }
 
     private static void runNewWorker(String requestsSQS, String answersSQS) {
         Ec2Client ec2 = Ec2Client.create();
@@ -138,7 +145,7 @@ public class Manager {
                         ("#!/bin/bash\n" +
                                 fileSystemInstallation +
                                 //       workerJar
-                                "aws s3 cp s3://oo-dspsp-ass1/Worker.jar Worker.jar\n" + //Ori S3
+                                "aws s3 cp s3://"+bucket+"/Worker.jar Worker.jar\n" + //Ori S3
                                 "java -jar Worker.jar " + requestsSQS + " " + answersSQS + "\n"
                         ).getBytes()))
                 .build();
@@ -148,7 +155,7 @@ public class Manager {
         String instanceId = response.instances().get(0).instanceId();
 
         ec2.createTags(CreateTagsRequest.builder().resources(instanceId).tags(Tag.builder()
-                .key("Name").value("Worker_" + workerCount++).build()).build());
+                .key("Name").value("Worker_" + workerCount++).build(), Tag.builder().key("Type").value("Worker").build()).build());
 
 
 //        List<Reservation> reservList = ec2.describeInstances().reservations();
@@ -269,6 +276,7 @@ public static String generateHTMLTableRow(String message){
         @Override
         public void run() {
             try {
+                System.out.println("starting thread "+localMessage);
                 String[] splitMessage = localMessage.split("\t");
                 String[] splitURL = splitMessage[0].split("/");
                 int ratio = Integer.parseInt(splitMessage[1]);
@@ -277,20 +285,24 @@ public static String generateHTMLTableRow(String message){
                 BufferedReader reader = new BufferedReader(new InputStreamReader(input));
                 ArrayList<String> messagesToWorkers = new ArrayList<>();
                 int messagecount = 0;
-                while (reader.ready()) {
-                    messagesToWorkers.add(reader.readLine());
+                String line;
+                while ((line = reader.readLine()) !=null) {
+                    messagesToWorkers.add(line);
                     messagecount++;
                 }
                 SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();
-                String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/445821044214/requests_queue"; //Ori
-                String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/445821044214/answers_queue"; //Ori
+//                String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/445821044214/requests_queue"; //Ori
+//                String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/445821044214/answers_queue"; //Ori
 
-                //        String requestsSqsUrl = ""; //Ohad
-                //        String answersSqsUr = ""; //Ohad
+                        String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/150025664389/requestsSqs"; //Ohad
+                        String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/150025664389/answersSqs"; //Ohad
                 SendMessageRequest send_msg_request;
+                System.out.println("sending messages to workers");
                 for (String messagesToWorker : messagesToWorkers)
                     sqs.sendMessage(SendMessageRequest.builder().queueUrl(requestsSqsUrl).messageBody(messagesToWorker).build());
                 int numOfWorkers = messagecount / ratio + (messagecount % ratio != 0 ? 1 : 0);
+                if(numOfWorkers >15)
+                    numOfWorkers = 15;
                 for (int i = 0; i < numOfWorkers; i++)
                     runNewWorker(requestsSqsUrl, answersSqsUr);
 
@@ -315,10 +327,14 @@ public static String generateHTMLTableRow(String message){
                 }
                 File output = createOutput(messagesToManager);
                 s3.putObject(PutObjectRequest.builder().bucket(bucket).key("output").build(), RequestBody.fromFile(output));
-                send_msg_request=SendMessageRequest.builder().queueUrl(localManagerSQSurl).messageBody("s3://"+bucket+"/"+"output").build();
+                final Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
+                messageAttributes.put("Output",MessageAttributeValue.builder().dataType("String").stringValue("v").build());
+                send_msg_request=SendMessageRequest.builder().queueUrl(localManagerSQSurl).messageBody("s3://"+bucket+"/"+"output")
+                        .messageAttributes(messageAttributes).build();
                 sqs.sendMessage(send_msg_request);
 
             } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }

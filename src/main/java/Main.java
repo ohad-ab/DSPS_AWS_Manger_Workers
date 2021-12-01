@@ -38,15 +38,16 @@ import java.util.*;
 public class Main {
     private static final String QUEUE_NAME = "testQueue" + new Date().getTime();
     private static final S3Client s3 = S3Client.builder().region(Region.US_EAST_1).build();
-    private static final SqsClient sqs = createSQS();
+    private static final SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();//createSQS();
+    private static final String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/LOCAL-MANAGER";
     private static boolean terminate=true;
 
     public static void main(String[] args) throws Exception {
         // Get data from args
         File input = new File(args[0]);
-//        File output = new File(args[1]);
+        File output = new File(args[1]);
         int workerRatio = Integer.parseInt(args[2]);
-//        Boolean terminate = args.length == 4 && args[3].equals("terminate"); //TODO: Check with Moshe, What is 'terminate' type?
+        Boolean terminate = args.length == 4 && args[3].equals("terminate"); //TODO: Check with Moshe, What is 'terminate' type?
 
         // Get s3
 //        String bucket_name = "oo-dspsp-ass1";
@@ -54,15 +55,15 @@ public class Main {
 
         // Upload input to S3
         String key_name = generate_keyName();
-        //s3.putObject(PutObjectRequest.builder().bucket(bucket_name).key(key_name).build(), RequestBody.fromFile(input));
+        s3.putObject(PutObjectRequest.builder().bucket(bucket_name).key(key_name).build(), RequestBody.fromFile(input));
 
         //create sqs
 
     //    S3Object obj = s3.getObject(GetObjectRequest.builder().build());
         sendMessage(sqs,"s3://"+bucket_name+"/"+key_name+"\t"+workerRatio);
-        GetQueueUrlResponse getQueueUrlResponse =
-                sqs.getQueueUrl(GetQueueUrlRequest.builder().queueName(QUEUE_NAME).build());
-        String queueUrl = getQueueUrlResponse.queueUrl();
+//        GetQueueUrlResponse getQueueUrlResponse =
+//                sqs.getQueueUrl(GetQueueUrlRequest.builder().queueName(QUEUE_NAME).build());
+//        String queueUrl = getQueueUrlResponse.queueUrl();
         String managerJarLoc =""; //TODO: get from s3
         String workerJarLoc =""; //TODO: get from s3
         Ec2Client ec2 = Ec2Client.create();
@@ -70,7 +71,7 @@ public class Main {
             runNewManager(ec2,managerJarLoc, workerJarLoc);
         }
 
-        waitForMessage(queueUrl);
+        waitForMessage(localManagerSQSurl);
         if(terminate)
         {
             sendMessage(sqs,"terminate");
@@ -107,7 +108,7 @@ public class Main {
         String instanceId = response.instances().get(0).instanceId();
 
         ec2.createTags(CreateTagsRequest.builder().resources(instanceId).tags(Tag.builder()
-                .key("Name").value("Manager").build()).build());
+                .key("Name").value("Manager").build(), Tag.builder().key("Type").value("Manager").build()).build());
 
 
 
@@ -197,10 +198,13 @@ public class Main {
         GetQueueUrlRequest getQueueRequest = GetQueueUrlRequest.builder()
                 .queueName(QUEUE_NAME)
                 .build();
-        String queueUrl = sqs.getQueueUrl(getQueueRequest).queueUrl();
+        //String queueUrl = sqs.getQueueUrl(getQueueRequest).queueUrl();
+        final Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
+        messageAttributes.put("Input",MessageAttributeValue.builder().dataType("String").stringValue("v").build());
         SendMessageRequest send_msg_request = SendMessageRequest.builder()
-                .queueUrl(queueUrl)
+                .queueUrl(localManagerSQSurl)
                 .messageBody(message)
+                .messageAttributes(messageAttributes)
                 .build();
         sqs.sendMessage(send_msg_request);
 
@@ -255,19 +259,22 @@ public class Main {
         System.out.println("waiting for a message");
         while (true)
         {
-            ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(queueUrl).maxNumberOfMessages(10).build();
+            ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(queueUrl).messageAttributeNames("Input").build();
             List<Message> messages = sqs.receiveMessage(receiveMessageRequest).messages();
             //System.out.println(messages.size());
             if(!messages.isEmpty())
                 for(Message message:messages)
                 {
-                    String path= message.body();
-                    String[] split=path.split("/",4);
-                    s3.getObject(GetObjectRequest.builder().bucket(split[2]).key(split[3]).build(),ResponseTransformer.toFile(new File("./output/output.html")));
-                    System.out.println("message received!");
-                    DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder().queueUrl(queueUrl).receiptHandle(message.receiptHandle()).build();
-                    sqs.deleteMessage(deleteMessageRequest);
-                    return;
+                    if(!message.messageAttributes().containsKey("Input"))
+                    {
+                        String path = message.body();
+                        String[] split = path.split("/", 4);
+                        s3.getObject(GetObjectRequest.builder().bucket(split[2]).key(split[3]).build(), ResponseTransformer.toFile(new File("./output/output.html")));
+                        System.out.println("message received!");
+                        DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder().queueUrl(queueUrl).receiptHandle(message.receiptHandle()).build();
+                        sqs.deleteMessage(deleteMessageRequest);
+                        return;
+                    }
                 }
         }
     }
