@@ -105,7 +105,7 @@ public class Manager {
         for (Reservation reservation : reservations) {
             Instance instance = reservation.instances().get(0);
             if (!instance.tags().isEmpty()) {
-                if(instance.tags().get(1).value().equals(name) && (instance.state().nameAsString().equals("running"))) {
+                if((instance.tags().get(1).value().equals(name)|| instance.tags().get(0).value().equals(name)) && (instance.state().nameAsString().equals("running"))) {
                     ec2.terminateInstances(TerminateInstancesRequest.builder().instanceIds(instance.instanceId()).build());
                     System.out.println("terminate "+name);
                 }

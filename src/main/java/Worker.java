@@ -161,7 +161,7 @@ public class Worker {
         page.addPage(document.getPage(0));
         PDFTextStripper textStripper = new PDFTextStripper();
         String str = textStripper.getText(page);
-        PrintWriter outTxt = new PrintWriter("./"+ keyName + ".txt");
+        PrintWriter outTxt = new PrintWriter("./"+ keyName + ".txt","utf-8");
         outTxt.println(str);
         System.out.println(str);
         outTxt.close();
@@ -191,8 +191,8 @@ public class Worker {
 
     public static String uploadFileToS3(File localFile, String key_name){
         // Get s3
-        String bucket_name = "oo-dspsp-ass1";
-//        String bucket_name = "dsps-221";
+        //String bucket_name = "oo-dspsp-ass1";
+        String bucket_name = "dsps-221";
 
         // Upload input to S3
         s3.putObject(PutObjectRequest.builder()
