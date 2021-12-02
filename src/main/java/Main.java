@@ -105,7 +105,7 @@ public class Main {
             Instance instance = reservation.instances().get(0);
             if(!instance.tags().isEmpty() && instance.tags().get(0).value().equals("Manager"))
                 if(instance.state().nameAsString().equals("pending")){
-                    System.out.println("There is a manager pending, try again");//TODO: ask moshe about the pending status
+                    System.out.println("There is a manager pending");//TODO: ask moshe about the pending status
                     return true;
                 }
                 else if (instance.state().nameAsString().equals("running")) {
@@ -165,7 +165,7 @@ public class Main {
             if(!messages.isEmpty())
                 for(Message message:messages)
                 {
-                    if(message.messageAttributes().containsValue(APP_NAME))
+                    if(message.messageAttributes().get("Name").stringValue().equals(APP_NAME))
                     {
                         String path = message.body();
                         String[] split = path.split("/");

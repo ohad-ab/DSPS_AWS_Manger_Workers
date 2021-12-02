@@ -233,17 +233,20 @@ public static String generateHTMLTableRow(String message){
         String newUrl;
         String newName;
         String finalOutput;
+        String operation;
 
-        if (splittedMessage[1].split("\t")[0] == "Exception"){
-            newUrl ="<span style=\"color: red;\">" + splittedMessage[1].split("\t")[1] + "</span>";
+        if (splittedMessage[1].split("\t")[0].equals("Exception")){
+            newUrl ="<span style=\"color: red;\">" + splittedMessage[2]+ "</span>";
             newName = "<span style=\"color: red;\"> Error </span>";
+            operation = splittedMessage[3];
         }
         else {
             newUrl = "<a href=" + splittedMessage[1] + ">";
             String[] splittedNewUrl = newUrl.split(".s3.amazonaws.com/");
             newName = splittedNewUrl[1] + "</a>";
+            operation = splittedMessage[2];
+
         }
-        String operation = splittedMessage[2];
         String originalName = splittedOriginUrl[splittedOriginUrl.length - 1].split(".pdf")[0];
         finalOutput = newUrl + newName;
         return "\n<tr>\n" +
@@ -315,7 +318,7 @@ public static String generateHTMLTableRow(String message){
                             .messageAttributes(messageAttributes).build());
                 int numOfNeededWorkers;
                 synchronized (numOfWorkers) {
-                    numOfNeededWorkers = (int) (Math.ceil(messagecount / ratio) - numOfWorkers);
+                    numOfNeededWorkers = (int) (Math.ceil((double) messagecount / ratio) - numOfWorkers);
 
                     if (numOfWorkers + numOfNeededWorkers > 15)
                         numOfNeededWorkers = 15 - numOfWorkers;
@@ -334,7 +337,7 @@ public static String generateHTMLTableRow(String message){
                     if(!messages.isEmpty())
                         for(Message message:messages)
                         {
-                            if(message.messageAttributes().containsValue(appName))
+                            if(message.messageAttributes().get("Name").stringValue().equals(appName))
                             {
                                 messagesToManager.add(message.body());
                                 System.out.println("message received!");
