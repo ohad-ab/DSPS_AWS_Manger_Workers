@@ -37,9 +37,11 @@ import java.util.*;
 
 public class Main {
     private static final String QUEUE_NAME = "testQueue" + new Date().getTime();
+    private static final String APP_NAME = "Local_" + new Date().getTime();
     private static final S3Client s3 = S3Client.builder().region(Region.US_EAST_1).build();
     private static final SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();//createSQS();
     private static final String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/LOCAL-MANAGER";
+    private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/MANAGER-LOCAL";
     private static boolean terminate=true;
 
     public static void main(String[] args) throws Exception {
@@ -195,12 +197,9 @@ public class Main {
         return sqs;
     }
     public static void sendMessage(SqsClient sqs, String message){
-        GetQueueUrlRequest getQueueRequest = GetQueueUrlRequest.builder()
-                .queueName(QUEUE_NAME)
-                .build();
         //String queueUrl = sqs.getQueueUrl(getQueueRequest).queueUrl();
         final Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
-        messageAttributes.put("Input",MessageAttributeValue.builder().dataType("String").stringValue("v").build());
+        messageAttributes.put("Input",MessageAttributeValue.builder().dataType("String").stringValue(APP_NAME).build());
         SendMessageRequest send_msg_request = SendMessageRequest.builder()
                 .queueUrl(localManagerSQSurl)
                 .messageBody(message)

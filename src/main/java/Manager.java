@@ -18,6 +18,8 @@ public class Manager {
     public static int workerCount = 0;
     public static String bucket = "dsps-221";
     public static String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/LOCAL-MANAGER";
+    private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/MANAGER-LOCAL";
+    public static Integer numOfWorkers = 0;
 
 
     public static void main(String[] args) {
@@ -300,12 +302,18 @@ public static String generateHTMLTableRow(String message){
                 System.out.println("sending messages to workers");
                 for (String messagesToWorker : messagesToWorkers)
                     sqs.sendMessage(SendMessageRequest.builder().queueUrl(requestsSqsUrl).messageBody(messagesToWorker).build());
-                int numOfWorkers = messagecount / ratio + (messagecount % ratio != 0 ? 1 : 0);
-                if(numOfWorkers >15)
-                    numOfWorkers = 15;
-                for (int i = 0; i < numOfWorkers; i++)
-                    runNewWorker(requestsSqsUrl, answersSqsUr);
+                int numOfNeededWorkers;
+                synchronized (numOfWorkers) {
+                    numOfNeededWorkers = (int) (Math.ceil(messagecount / ratio) - numOfWorkers);
 
+                    if (numOfWorkers + numOfNeededWorkers > 15)
+                        numOfNeededWorkers = 15 - numOfWorkers;
+
+                    for (int i = 0; i < numOfNeededWorkers; i++) {
+                        runNewWorker(requestsSqsUrl, answersSqsUr);
+                        numOfWorkers++;
+                    }
+                }
                 ArrayList<String> messagesToManager = new ArrayList<>();
 
                 while (true)
