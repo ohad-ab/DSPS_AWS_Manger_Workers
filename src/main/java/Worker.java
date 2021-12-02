@@ -21,7 +21,9 @@ import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Worker {
     private static final S3Client s3 = S3Client.builder().region(Region.US_EAST_1).build();
@@ -41,6 +43,8 @@ public class Worker {
             Message receivedMessage = waitForMessage(requestsSqs);
             String[] splittedMessage = receivedMessage.body().split("\t");
             String operation = splittedMessage[0];
+            String appName = receivedMessage.messageAttributes().get("Name").stringValue();
+            boolean isMessageSent = false;
             try {
                 URL url = new URL(splittedMessage[1]);
                 String keyName = generate_keyName(splittedMessage[1]);
@@ -48,7 +52,7 @@ public class Worker {
                 String outputMessage;
                 localFile = handleOperation(operation, url, keyName);
                 outputMessage = url + "\t" + uploadFileToS3(localFile, keyName) + "\t" + operation;
-                sendMessage(answersSqs, outputMessage);
+                isMessageSent = sendMessage(appName, answersSqs, outputMessage);
                 localFile.delete();
 
             } catch (Exception e) {
@@ -66,10 +70,11 @@ public class Worker {
                     errorMessage = e.getMessage();
                 }
                 String outputMessage = splittedMessage[1] + "\tException\t" + errorMessage + "\t" + operation;;
-                sendMessage(answersSqs, outputMessage);
+               isMessageSent = sendMessage(appName, answersSqs, outputMessage);
             }
             finally {
-                deleteMessage(receivedMessage,requestsSqs);
+                if(isMessageSent)
+                    deleteMessage(receivedMessage,requestsSqs);
             }
 
         }
@@ -175,21 +180,20 @@ public class Worker {
         return "./"+ keyName +".txt";
     }
 
-    public static void sendMessage(String queueUrl, String message) {
-//        GetQueueUrlRequest getQueueRequest = GetQueueUrlRequest.builder()
-//                .
-//                .build();
-//        String queueUrl = sqs.getQueueUrl(getQueueRequest).queueUrl();
-
+    public static boolean sendMessage(String appName, String queueUrl, String message) {
         try {
+            final Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
+            messageAttributes.put("Name",MessageAttributeValue.builder().dataType("String").stringValue(appName).build());
             sqs.sendMessage(SendMessageRequest.builder()
                     .queueUrl(queueUrl)
                     .messageBody(message)
+                            .messageAttributes(messageAttributes)
                     .build());
             System.out.println("\nmessage sent:\n" + message);
+            return true;
         } catch (SqsException e) {
             System.err.println(e.awsErrorDetails().errorMessage());
-//            System.exit(1); //TODO: exception?
+            return false;
         }
     }
 
@@ -204,7 +208,6 @@ public class Worker {
                 .key(key_name)
                 .acl(ObjectCannedACL.PUBLIC_READ) //Access control list
                 .build(), RequestBody.fromFile(localFile));
-//        System.out.println("\nfile uploaded to:\n" + "s3://"+bucket_name+"/"+key_name);
         String newUrl = "https://"+bucket_name+".s3.amazonaws.com/"+key_name;
         System.out.println("\nfile uploaded to:\n" +newUrl );
 

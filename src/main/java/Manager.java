@@ -78,7 +78,7 @@ public class Manager {
                             DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder().queueUrl(localManagerSQSurl).receiptHandle(message.receiptHandle()).build();
                             DeleteMessageResponse response= sqs.deleteMessage(deleteMessageRequest);
                             System.out.println(response.toString());
-                            Request request = new Request(body);
+                            Request request = new Request(message);
                             pool.execute(request);
 //                            Thread thread = new Thread(request);
 //                            thread.start();
@@ -141,10 +141,11 @@ public class Manager {
                 .iamInstanceProfile(iam)
                 .userData(Base64.getEncoder().encodeToString(
                         ("#!/bin/bash\n" +
-                                fileSystemInstallation +
+                                //fileSystemInstallation +
                                 //       workerJar
-                                "aws s3 cp s3://"+bucket+"/Worker.jar Worker.jar\n" + //Ori S3
-                                "java -jar Worker.jar " + requestsSQS + " " + answersSQS + "\n"
+                                "mkdir files\n"+
+                                "aws s3 cp s3://"+bucket+"/Worker.jar ./files/Worker.jar\n" + //Ori S3
+                                "java -jar ./files/Worker.jar " + requestsSQS + " " + answersSQS + "\n"
                         ).getBytes()))
                 .build();
 //        String reservation_id = ec2.describeInstances().reservations().get(0).instances().get(0).instanceId();
@@ -275,17 +276,18 @@ public static String generateHTMLTableRow(String message){
 
 
     static class Request implements Runnable {
-        private String localMessage;
+        private Message localMessage;
 
-        public Request(String localMessage) {
+        public Request(Message localMessage) {
             this.localMessage = localMessage;
         }
 
         @Override
         public void run() {
             try {
-                System.out.println("starting thread "+localMessage);
-                String[] splitMessage = localMessage.split("\t");
+                System.out.println("starting thread "+localMessage.body());
+                String appName = localMessage.messageAttributes().get("Name").stringValue();
+                String[] splitMessage = localMessage.body().split("\t");
                 String[] splitURL = splitMessage[0].split("/");
                 int ratio = Integer.parseInt(splitMessage[1]);
                 S3Client s3 = S3Client.builder().region(Region.US_EAST_1).build();
@@ -326,15 +328,17 @@ public static String generateHTMLTableRow(String message){
                 {
                     ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(answersSqsUr).build();
                     List<Message> messages = sqs.receiveMessage(receiveMessageRequest).messages();
-                    //System.out.println(messages.size());
                     if(!messages.isEmpty())
                         for(Message message:messages)
                         {
-                            messagesToManager.add(message.body());
-                            System.out.println("message received!");
-                            DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder().queueUrl(answersSqsUr).receiptHandle(message.receiptHandle()).build();
-                            sqs.deleteMessage(deleteMessageRequest);
-                            messagecount--;
+                            if(message.messageAttributes().containsValue(appName))
+                            {
+                                messagesToManager.add(message.body());
+                                System.out.println("message received!");
+                                DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder().queueUrl(answersSqsUr).receiptHandle(message.receiptHandle()).build();
+                                sqs.deleteMessage(deleteMessageRequest);
+                                messagecount--;
+                            }
                         }
                     if(messagecount == 0)
                         break;
@@ -342,8 +346,8 @@ public static String generateHTMLTableRow(String message){
                 File output = createOutput(messagesToManager);
                 s3.putObject(PutObjectRequest.builder().bucket(bucket).key("output").build(), RequestBody.fromFile(output));
                 final Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
-                messageAttributes.put("Output",MessageAttributeValue.builder().dataType("String").stringValue("v").build());
-                send_msg_request=SendMessageRequest.builder().queueUrl(localManagerSQSurl).messageBody("s3://"+bucket+"/"+"output")
+                messageAttributes.put("Name",MessageAttributeValue.builder().dataType("String").stringValue(appName).build());
+                send_msg_request=SendMessageRequest.builder().queueUrl(managerLocalSQSurl).messageBody("s3://"+bucket+"/"+"output")
                         .messageAttributes(messageAttributes).build();
                 sqs.sendMessage(send_msg_request);
 
