@@ -68,6 +68,7 @@ public class Worker {
                 }
                 else if (e instanceof ProblemInProcessException){
                     errorMessage = e.getMessage();
+//                    errorMessage = e.getCause();
                 }
                 String outputMessage = splittedMessage[1] + "\tException\t" + errorMessage + "\t" + operation;;
                isMessageSent = sendMessage(appName, answersSqs, outputMessage);
