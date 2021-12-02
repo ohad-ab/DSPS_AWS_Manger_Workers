@@ -38,11 +38,12 @@ public class Worker {
         //requests SQS - https://sqs.us-east-1.amazonaws.com/445821044214/requests_queue
         //answers SQS - https://sqs.us-east-1.amazonaws.com/445821044214/answers_queue
         while (true) {
-            String[] receivedMessage = waitForMessage(requestsSqs).split("\t");
-            String operation = receivedMessage[0];
+            Message receivedMessage = waitForMessage(requestsSqs);
+            String[] splittedMessage = receivedMessage.body().split("\t");
+            String operation = splittedMessage[0];
             try {
-                URL url = new URL(receivedMessage[1]);
-                String keyName = generate_keyName(receivedMessage[1]);
+                URL url = new URL(splittedMessage[1]);
+                String keyName = generate_keyName(splittedMessage[1]);
                 File localFile;
                 String outputMessage;
                 localFile = handleOperation(operation, url, keyName);
@@ -64,8 +65,11 @@ public class Worker {
                 else if (e instanceof ProblemInProcessException){
                     errorMessage = e.getMessage();
                 }
-                String outputMessage = receivedMessage[1] + "\tException\t" + errorMessage + "\t" + operation;;
+                String outputMessage = splittedMessage[1] + "\tException\t" + errorMessage + "\t" + operation;;
                 sendMessage(answersSqs, outputMessage);
+            }
+            finally {
+                deleteMessage(receivedMessage,requestsSqs);
             }
 
         }
@@ -87,21 +91,21 @@ public class Worker {
     }
 
 
-    public static String waitForMessage(String sqsurl) {
+    public static Message waitForMessage(String sqsurl) {
         Boolean gotMessage = false;
         String body = null;
+        Message message = null;
         while (!gotMessage) {
             ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(sqsurl).build();
             List<Message> messages = sqs.receiveMessage(receiveMessageRequest).messages();
             if (!messages.isEmpty()) {
-                Message message = messages.get(0);
+                message = messages.get(0);
                 body = message.body();
                 System.out.println("message received:\n" + body);
-                deleteMessage(message,sqsurl);
                 gotMessage = true;
             }
         }
-        return body;
+        return message;
     }
 
     public static void deleteMessage(Message m, String sqsurl){ //TODO: handle exceptions???

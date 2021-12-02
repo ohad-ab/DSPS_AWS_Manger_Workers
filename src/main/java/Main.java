@@ -1,5 +1,3 @@
-import software.amazon.awssdk.core.ResponseBytes;
-import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
 import software.amazon.awssdk.services.ec2.Ec2Client;
@@ -17,16 +15,12 @@ import software.amazon.awssdk.services.ec2.model.RunInstancesResponse;
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
 import software.amazon.awssdk.services.sqs.model.CreateQueueResponse;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
-import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.QueueNameExistsException;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
-import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
-import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 //import java.util.Date;
 //import java.util.List;
-import javax.naming.Name;
 import java.io.File;
 //import java.util.Base64;
 import java.util.*;
@@ -47,7 +41,7 @@ public class Main {
     public static void main(String[] args) throws Exception {
         // Get data from args
         File input = new File(args[0]);
-        File output = new File(args[1]);
+        String output = args[1];
         int workerRatio = Integer.parseInt(args[2]);
         Boolean terminate = args.length == 4 && args[3].equals("terminate"); //TODO: Check with Moshe, What is 'terminate' type?
 
@@ -59,37 +53,30 @@ public class Main {
         String key_name = generate_keyName();
         s3.putObject(PutObjectRequest.builder().bucket(bucket_name).key(key_name).build(), RequestBody.fromFile(input));
 
-        //create sqs
-
-    //    S3Object obj = s3.getObject(GetObjectRequest.builder().build());
-        sendMessage(sqs,"s3://"+bucket_name+"/"+key_name+"\t"+workerRatio);
-//        GetQueueUrlResponse getQueueUrlResponse =
-//                sqs.getQueueUrl(GetQueueUrlRequest.builder().queueName(QUEUE_NAME).build());
-//        String queueUrl = getQueueUrlResponse.queueUrl();
-        String managerJarLoc =""; //TODO: get from s3
-        String workerJarLoc =""; //TODO: get from s3
+        //send input to Local-Manager sqs
+        sendMessage("s3://"+bucket_name+"/"+key_name+"\t"+workerRatio);
+        String managerJarLoc ="s3://"+bucket_name+"/Manager.jar";
         Ec2Client ec2 = Ec2Client.create();
         if (!isRunningEc2(ec2)){
-            runNewManager(ec2,managerJarLoc, workerJarLoc);
+            runNewManager(ec2,managerJarLoc);
         }
 
-        waitForMessage(localManagerSQSurl);
+        waitForMessage(output);
         if(terminate)
         {
-            sendMessage(sqs,"terminate");
+            sendMessage("terminate");
         }
-        // ec2Try();
-       // sqsTry();
+
     }
 
-    private static void runNewManager(Ec2Client ec2,String managerJar, String workerJar ) {
+    private static void runNewManager(Ec2Client ec2, String managerJar) {
         System.out.println("Running new manager");
         String amiId = "ami-00e95a9222311e8ed";
-        String javaInstallation = "wget --no-check-certificate --no-cookies --header \"Cookie: oraclelicense=accept-securebackup-cookie\" http://download.oracle.com/otn-pub/java/jdk/8u141-b15/336fa29ff2bb4ef291e347e091f7f4a7/jdk-8u141-linux-x64.rpm\n"+
-                "sudo yum install -y jdk-8u141-linux-x64.rpm\n";
+//        String javaInstallation = "wget --no-check-certificate --no-cookies --header \"Cookie: oraclelicense=accept-securebackup-cookie\" http://download.oracle.com/otn-pub/java/jdk/8u141-b15/336fa29ff2bb4ef291e347e091f7f4a7/jdk-8u141-linux-x64.rpm\n"+
+//                "sudo yum install -y jdk-8u141-linux-x64.rpm\n";
         //sg-0a245fb00956df9ba security group ohad
         //sg-0f83f8c78a44f97a6 security group ori
-        IamInstanceProfileSpecification iam = IamInstanceProfileSpecification.builder().name("LabInstanceProfile").build();//.name("EMR_EC2_DefaultRole").build();
+        IamInstanceProfileSpecification iam = IamInstanceProfileSpecification.builder().name("LabInstanceProfile").build();
         RunInstancesRequest runRequest = RunInstancesRequest.builder()
                 .instanceType(InstanceType.T2_MICRO)
                 .imageId(amiId)
@@ -99,26 +86,17 @@ public class Main {
                 .userData(Base64.getEncoder().encodeToString(
                         ("#!/bin/bash\n"+
                                 //javaInstallation+
-                         //       managerJar
-                                "aws s3 cp s3://dsps-221/Manager.jar Manager.jar\n" +
+                                "aws s3 cp "+managerJar+" Manager.jar\n" +
                                 "java -jar Manager.jar\n"
                                 ).getBytes()))
                 .build();
-//        String reservation_id = ec2.describeInstances().reservations().get(0).instances().get(0).instanceId();
         RunInstancesResponse response = ec2.runInstances(runRequest);
-
+        //create tags
         String instanceId = response.instances().get(0).instanceId();
-
         ec2.createTags(CreateTagsRequest.builder().resources(instanceId).tags(Tag.builder()
                 .key("Name").value("Manager").build(), Tag.builder().key("Type").value("Manager").build()).build());
 
 
-
-//        List<Reservation> reservList = ec2.describeInstances().reservations();
-//        List<Instance> instanceList =  reservList.get(0).instances();
-        //RunInstancesResponse response = ec2.runInstances(runRequest);
-        List<Instance> instances = response.instances();
-        System.out.println(instances);
     }
 
     private static boolean isRunningEc2(Ec2Client ec2) {
@@ -140,44 +118,12 @@ public class Main {
     }
 
     public static String generate_keyName(){//TODO: check if needed.
-        String newKey = "inputTest";
+        String newKey = "input_"+APP_NAME;
         //TODO: Get available name
         return  newKey;
     }
 
-    public static void ec2Try(){
-        Ec2Client ec2 = Ec2Client.create();
-        String amiId = "ami-04ad2567c9e3d7893";
-        String javaInstallation = "wget --no-check-certificate --no-cookies --header \"Cookie: oraclelicense=accept-securebackup-cookie\" http://download.oracle.com/otn-pub/java/jdk/8u141-b15/336fa29ff2bb4ef291e347e091f7f4a7/jdk-8u141-linux-x64.rpm\n"+
-                "sudo yum install -y jdk-8u141-linux-x64.rpm\n";
 
-//        ami without java - ami-04ad2567c9e3d7893 (T2_MICRO)
-//        ami with java - ami-00e95a9222311e8ed (T2_MICRO)
-
-        RunInstancesRequest runRequest = RunInstancesRequest.builder()
-                .instanceType(InstanceType.T2_MICRO)
-                .imageId(amiId)
-                .maxCount(1)
-                .minCount(1)
-                .keyName("key1")
-                .securityGroupIds("sg-0f83f8c78a44f97a6")
-                .userData(Base64.getEncoder().encodeToString(
-                                ("#!/bin/bash\n"+
-                                         javaInstallation).getBytes()))
-                .build();
-        RunInstancesResponse response = ec2.runInstances(runRequest);
-        List<Instance> instances = response.instances();
-//      Print a list of available instances
-        System.out.println(instances);
-
-        String id = instances.get(0).instanceId();
-
-        GetConsoleOutputResponse res = GetConsoleOutputResponse.builder().instanceId(id).build();
-
-        System.out.println(res);
-        System.out.println(res.output());
-
-    }
 
     public static SqsClient createSQS() {
         SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();
@@ -196,10 +142,10 @@ public class Main {
 
         return sqs;
     }
-    public static void sendMessage(SqsClient sqs, String message){
+    public static void sendMessage(String message){
         //String queueUrl = sqs.getQueueUrl(getQueueRequest).queueUrl();
         final Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
-        messageAttributes.put("Input",MessageAttributeValue.builder().dataType("String").stringValue(APP_NAME).build());
+        messageAttributes.put("Name",MessageAttributeValue.builder().dataType("String").stringValue(APP_NAME).build());
         SendMessageRequest send_msg_request = SendMessageRequest.builder()
                 .queueUrl(localManagerSQSurl)
                 .messageBody(message)
@@ -208,69 +154,24 @@ public class Main {
         sqs.sendMessage(send_msg_request);
 
 
-//        // Send multiple messages to the queue
-//        SendMessageBatchRequest send_batch_request = SendMessageBatchRequest.builder()
-//                .queueUrl(queueUrl)
-//                .entries(
-//                        SendMessageBatchRequestEntry.builder()
-//                                .messageBody("Hello from message 1 - Ohad")
-//                                .id("msg_1")
-//                                .build()
-//                        ,
-//                        SendMessageBatchRequestEntry.builder()
-//                                .messageBody("Hello from message 2 - Ori")
-//                                .id("msg_2")
-//                                .build())
-//                .build();
-//        sqs.sendMessageBatch(send_batch_request);
-//
-//        // receive messages from the queue
-//        ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
-//                .queueUrl(queueUrl)
-//                .build();
-//        List<Message> messages = sqs.receiveMessage(receiveRequest).messages();
-//        System.out.println(messages.toString());
-//        receiveRequest = ReceiveMessageRequest.builder()
-//                .queueUrl(queueUrl)
-//                .build();
-//         messages = sqs.receiveMessage(receiveRequest).messages();
-//        System.out.println(messages.toString());
-//        receiveRequest = ReceiveMessageRequest.builder()
-//                .queueUrl(queueUrl)
-//                .build();
-//        messages = sqs.receiveMessage(receiveRequest).messages();
-//        System.out.println(messages.toString());
-//        for (Message m : messages) {
-//            System.out.println(m.body());
-//        }
-
-//         delete messages from the queue
-//        for (Message m : messages) {
-//            DeleteMessageRequest deleteRequest = DeleteMessageRequest.builder()
-//                    .queueUrl(queueUrl)
-//                    .receiptHandle(m.receiptHandle())
-//                    .build();
-//            sqs.deleteMessage(deleteRequest);
-//        }
     }
 
-    public static void waitForMessage(String queueUrl){
+    public static void waitForMessage(String outputPath){
         System.out.println("waiting for a message");
         while (true)
         {
-            ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(queueUrl).messageAttributeNames("Input").build();
+            ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(managerLocalSQSurl).messageAttributeNames("Name").build();
             List<Message> messages = sqs.receiveMessage(receiveMessageRequest).messages();
-            //System.out.println(messages.size());
             if(!messages.isEmpty())
                 for(Message message:messages)
                 {
-                    if(!message.messageAttributes().containsKey("Input"))
+                    if(message.messageAttributes().containsValue(APP_NAME))
                     {
                         String path = message.body();
-                        String[] split = path.split("/", 4);
-                        s3.getObject(GetObjectRequest.builder().bucket(split[2]).key(split[3]).build(), ResponseTransformer.toFile(new File("./output/output.html")));
+                        String[] split = path.split("/");
+                        s3.getObject(GetObjectRequest.builder().bucket(split[2]).key(split[3]).build(), ResponseTransformer.toFile(new File(outputPath)));
                         System.out.println("message received!");
-                        DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder().queueUrl(queueUrl).receiptHandle(message.receiptHandle()).build();
+                        DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder().queueUrl(managerLocalSQSurl).receiptHandle(message.receiptHandle()).build();
                         sqs.deleteMessage(deleteMessageRequest);
                         return;
                     }

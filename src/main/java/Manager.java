@@ -1,3 +1,4 @@
+import com.sun.corba.se.impl.orbutil.threadpool.ThreadPoolImpl;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
 import software.amazon.awssdk.regions.Region;
@@ -8,25 +9,30 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
+import sun.nio.ch.ThreadPool;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class Manager {
     private static boolean terminate = false;
     public static int activeWorker = 0;
     public static int workerCount = 0;
     public static String bucket = "dsps-221";
-    public static String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/LOCAL-MANAGER";
-    private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/MANAGER-LOCAL";
-    //    public static String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Local-Manager";
-    //    private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Manager-Local";
+    public static String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/LOCAL-MANAGER";//ohad
+    private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/MANAGER-LOCAL";//ohad
+    //    public static String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Local-Manager"; //ori
+    //    private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Manager-Local"; //ori
     public static Integer numOfWorkers = 0;
-
+    public static ExecutorService pool = Executors.newFixedThreadPool(10);
 
     public static void main(String[] args) {
         System.out.println("Manager Started");
-        waitForMessages(localManagerSQSurl);
+        waitForMessages();
 
 
 
@@ -47,56 +53,44 @@ public class Manager {
 //        }
     }
 
-    public static String generate_keyName() {//TODO: check if needed.
-        String newKey = "inputTest";
-        //TODO: Get available name
-        return newKey;
-    }
-
-    private static final String QUEUE_NAME = "testQueue" + new Date().getTime();
-
-    public static void waitForMessages(String localManagerSQSurl) {
+    public static void waitForMessages() {
         SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();
 
         try {
-//            ListQueuesRequest listQueuesRequest = ListQueuesRequest.builder().build();
-//            ListQueuesResponse listQueuesResponse = sqs.listQueues(listQueuesRequest);
-//
-//            String queueUrl = listQueuesResponse.queueUrls().get(0);
-//            SendMessageRequest send_msg_request = SendMessageRequest.builder()
-//                    .queueUrl(queueUrl)
-//                    .messageBody("s3://dsps-221/pdf.html")
-//                    .build();
-//            sqs.sendMessage(send_msg_request);
             while (!terminate) {
-                ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(localManagerSQSurl).messageAttributeNames("Output").visibilityTimeout(0).build();
+                ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(localManagerSQSurl).messageAttributeNames("Name").visibilityTimeout(0).build();
                 List<Message> messages = sqs.receiveMessage(receiveMessageRequest).messages();
                 if (!messages.isEmpty()) {
-                    Message message = messages.get(0);
-                    String body = message.body();
-                    if (body.equals("terminate")) {
-                        terminate = true;
-                        DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder().queueUrl(localManagerSQSurl).receiptHandle(message.receiptHandle()).build();
-                        DeleteMessageResponse response= sqs.deleteMessage(deleteMessageRequest);
-                        System.out.println("terminate");
-                        processTerminate("Worker");
-                        processTerminate("Manager");
-                    } else if(!message.messageAttributes().containsKey("Output")) {
-                        System.out.println("input received "+message.body());
-                        DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder().queueUrl(localManagerSQSurl).receiptHandle(message.receiptHandle()).build();
-                        DeleteMessageResponse response= sqs.deleteMessage(deleteMessageRequest);
-                        System.out.println(response.toString());
-                        Request request = new Request(body);
-                        Thread thread = new Thread(request);
-                        thread.start();
-                        //thread.join();
+                    for(Message message: messages){
+                        String body = message.body();
+                        if (body.equals("terminate")) {
+                            terminate = true;
+                            DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder().queueUrl(localManagerSQSurl).receiptHandle(message.receiptHandle()).build();
+                            sqs.deleteMessage(deleteMessageRequest);
+                            pool.shutdown();
+                            while(!pool.awaitTermination(30, TimeUnit.SECONDS)){}//waiting for all the threads to end
+                            System.out.println("terminate");
+                            processTerminate("Worker");
+                            processTerminate("Manager");
+                        }
+                        else {
+                            System.out.println("input received "+message.body());
+                            DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder().queueUrl(localManagerSQSurl).receiptHandle(message.receiptHandle()).build();
+                            DeleteMessageResponse response= sqs.deleteMessage(deleteMessageRequest);
+                            System.out.println(response.toString());
+                            Request request = new Request(body);
+                            pool.execute(request);
+//                            Thread thread = new Thread(request);
+//                            thread.start();
+//                            //thread.join();
+                        }
                     }
                 }
 
 
             }
 
-        } catch (SqsException /*| InterruptedException*/ e) {
+        } catch (SqsException | InterruptedException /*| InterruptedException*/ e) {
             //System.err.println(e.awsErrorDetails().errorMessage());
             e.printStackTrace();
             System.exit(1);
