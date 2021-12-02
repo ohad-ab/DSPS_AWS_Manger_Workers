@@ -19,6 +19,8 @@ public class Manager {
     public static String bucket = "dsps-221";
     public static String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/LOCAL-MANAGER";
     private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/MANAGER-LOCAL";
+    //    public static String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Local-Manager";
+    //    private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Manager-Local";
     public static Integer numOfWorkers = 0;
 
 
