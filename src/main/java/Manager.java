@@ -307,9 +307,12 @@ public static String generateHTMLTableRow(String message){
                         String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/150025664389/requestsSqs"; //Ohad
                         String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/150025664389/answersSqs"; //Ohad
                 SendMessageRequest send_msg_request;
+                Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
+                messageAttributes.put("Name",MessageAttributeValue.builder().dataType("String").stringValue(appName).build());
                 System.out.println("sending messages to workers");
                 for (String messagesToWorker : messagesToWorkers)
-                    sqs.sendMessage(SendMessageRequest.builder().queueUrl(requestsSqsUrl).messageBody(messagesToWorker).build());
+                    sqs.sendMessage(SendMessageRequest.builder().queueUrl(requestsSqsUrl).messageBody(messagesToWorker)
+                            .messageAttributes(messageAttributes).build());
                 int numOfNeededWorkers;
                 synchronized (numOfWorkers) {
                     numOfNeededWorkers = (int) (Math.ceil(messagecount / ratio) - numOfWorkers);
@@ -345,7 +348,7 @@ public static String generateHTMLTableRow(String message){
                 }
                 File output = createOutput(messagesToManager);
                 s3.putObject(PutObjectRequest.builder().bucket(bucket).key("output").build(), RequestBody.fromFile(output));
-                final Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
+                messageAttributes = new HashMap<>();
                 messageAttributes.put("Name",MessageAttributeValue.builder().dataType("String").stringValue(appName).build());
                 send_msg_request=SendMessageRequest.builder().queueUrl(managerLocalSQSurl).messageBody("s3://"+bucket+"/"+"output")
                         .messageAttributes(messageAttributes).build();
