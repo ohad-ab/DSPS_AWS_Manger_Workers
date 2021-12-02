@@ -329,7 +329,7 @@ public static String generateHTMLTableRow(String message){
 
                 while (true)
                 {
-                    ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(answersSqsUr).build();
+                    ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(answersSqsUr).messageAttributeNames("Name").build();
                     List<Message> messages = sqs.receiveMessage(receiveMessageRequest).messages();
                     if(!messages.isEmpty())
                         for(Message message:messages)

@@ -101,7 +101,7 @@ public class Worker {
         String body = null;
         Message message = null;
         while (!gotMessage) {
-            ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(sqsurl).build();
+            ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder().queueUrl(sqsurl).messageAttributeNames("Name").maxNumberOfMessages(1).build();
             List<Message> messages = sqs.receiveMessage(receiveMessageRequest).messages();
             if (!messages.isEmpty()) {
                 message = messages.get(0);
