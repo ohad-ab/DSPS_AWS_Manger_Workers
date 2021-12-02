@@ -153,8 +153,8 @@ public class Manager {
 
         String instanceId = response.instances().get(0).instanceId();
 
-        ec2.createTags(CreateTagsRequest.builder().resources(instanceId).tags(Tag.builder()
-                .key("Name").value("Worker_" + workerCount++).build(), Tag.builder().key("Type").value("Worker").build()).build());
+        addTagToInstance(ec2, instanceId);
+
 
 
 //        List<Reservation> reservList = ec2.describeInstances().reservations();
@@ -163,6 +163,23 @@ public class Manager {
         List<Instance> instances = response.instances();
         System.out.println(instances);
     }
+
+    private static void addTagToInstance(Ec2Client ec2, String instanceId) {
+        try {
+            ec2.createTags(CreateTagsRequest.builder().resources(instanceId).tags(Tag.builder()
+                    .key("Name").value("Worker_" + workerCount++).build(), Tag.builder().key("Type").value("Worker").build()).build());
+        }
+        catch  (Exception e){
+            try {
+                System.err.println("Problem with creating tag, trying again");
+                TimeUnit.SECONDS.sleep(1);
+                addTagToInstance(ec2, instanceId);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
     private static File createOutput(List<String>messages)
     {
         String startOfHTML = "<!DOCTYPE html>\n" +
