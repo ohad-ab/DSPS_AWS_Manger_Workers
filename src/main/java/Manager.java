@@ -196,7 +196,7 @@ public class Manager {
                 "</head>\n" +
                 "\n" +
                 "<body>\n" +
-                "    <h1 style=\"color: #5e9ca0;\">Ohad and Ori PDF converter&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</h1>\n" +
+                "    <h1 style=\"color: #5e9ca0;\">Ohad and Ori - PDF converter&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</h1>\n" +
                 "    <h2 style=\"color: #2e6c80;\">Output:</h2>\n" +
                 "    <table class=\"unstyledTable\">\n" +
                 "        <thead>\n" +
@@ -229,16 +229,26 @@ public static String generateHTMLTableRow(String message){
         String[] splittedMessage = message.split("\t");
         String originalUrl = splittedMessage[0];
         String[] splittedOriginUrl = originalUrl.split("/");
-        String newUrl = splittedMessage[1];
-        String[] splittedNewUrl = newUrl.split(".s3.amazonaws.com/");
-        String operation = splittedMessage[2];
-        String originalName = splittedOriginUrl[splittedOriginUrl.length-1].split(".pdf")[0];
-        String newName = splittedNewUrl[1];
+        String newUrl;
+        String newName;
+        String finalOutput;
 
+        if (splittedMessage[1].split("\t")[0] == "Exception"){
+            newUrl ="<span style=\"color: red;\">" + splittedMessage[1].split("\t")[1] + "</span>";
+            newName = "<span style=\"color: red;\"> Error </span>";
+        }
+        else {
+            newUrl = "<a href=" + splittedMessage[1] + ">";
+            String[] splittedNewUrl = newUrl.split(".s3.amazonaws.com/");
+            newName = splittedNewUrl[1] + "</a>";
+        }
+        String operation = splittedMessage[2];
+        String originalName = splittedOriginUrl[splittedOriginUrl.length - 1].split(".pdf")[0];
+        finalOutput = newUrl + newName;
         return "\n<tr>\n" +
         "<td>"+ operation + "</td>\n" +
         "<td> <a href="+ originalUrl +">" + originalName +"</a></td>\n" +
-        "<td><a href="+ newUrl + ">" + newName + "</a></td>\n" +
+        "<td>" + finalOutput + "</td>\n" +
         "</tr>\n";
     }
 
