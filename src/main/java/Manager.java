@@ -1,4 +1,3 @@
-import com.sun.corba.se.impl.orbutil.threadpool.ThreadPoolImpl;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
 import software.amazon.awssdk.regions.Region;
@@ -9,24 +8,24 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
-import sun.nio.ch.ThreadPool;
+//import sun.nio.ch.ThreadPool;
 
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class Manager {
     private static boolean terminate = false;
     public static int activeWorker = 0;
     public static int workerCount = 0;
-    public static String bucket = "dsps-221";
-    public static String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/LOCAL-MANAGER";//ohad
-    private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/MANAGER-LOCAL";//ohad
-    //    public static String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Local-Manager"; //ori
-    //    private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Manager-Local"; //ori
+//    public static String bucket = "dsps-221"; //Ohad
+    public static String bucket = "oo-dspsp-ass1"; //Ori
+//    public static String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/LOCAL-MANAGER";//ohad
+//    private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/MANAGER-LOCAL";//ohad
+        public static String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Local-Manager"; //ori
+        private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Manager-Local"; //ori
     public static Integer numOfWorkers = 0;
     public static ExecutorService pool = Executors.newFixedThreadPool(10);
 
@@ -157,9 +156,6 @@ public class Manager {
 
 
 
-//        List<Reservation> reservList = ec2.describeInstances().reservations();
-//        List<Instance> instanceList =  reservList.get(0).instances();
-        //RunInstancesResponse response = ec2.runInstances(runRequest);
         List<Instance> instances = response.instances();
         System.out.println(instances);
     }
@@ -219,6 +215,7 @@ public class Manager {
                 "    <table class=\"unstyledTable\">\n" +
                 "        <thead>\n" +
                 "            <tr>\n" +
+                "                <th><strong>#</strong></th>\n" +
                 "                <th><strong>Operation</strong></th>\n" +
                 "                <th style=\"height: 18px; width: 221px;\"><strong>Input File</strong></th>\n" +
                 "                <th style=\"height: 18px; width: 179px;\"><strong>Output File</strong></th>\n" +
@@ -233,9 +230,12 @@ public class Manager {
         PrintWriter outHTML = null;
         try {
           outHTML = new PrintWriter("./output.html");
-          for(String message: messages)
+          int index = 1;
+          for(String message: messages){
             //  addedRows.concat(generateHTMLTableRow(message));
-              addedRows=addedRows+generateHTMLTableRow(message);
+              addedRows=addedRows+generateHTMLTableRow(message, index);
+              index++;
+          }
           outHTML.println(startOfHTML + addedRows + endOfHTML);
           outHTML.close();
         } catch (FileNotFoundException e) {
@@ -243,7 +243,7 @@ public class Manager {
         }
         return new File("./output.html");
     }
-public static String generateHTMLTableRow(String message){
+public static String generateHTMLTableRow(String message, int i){
         String[] splittedMessage = message.split("\t");
         String originalUrl = splittedMessage[0];
         String[] splittedOriginUrl = originalUrl.split("/");
@@ -254,7 +254,8 @@ public static String generateHTMLTableRow(String message){
 
         if (splittedMessage[1].split("\t")[0].equals("Exception")){
             newUrl ="<span style=\"color: red;\">" + splittedMessage[2]+ "</span>";
-            newName = "<span style=\"color: red;\"> Error </span>";
+//            newName = "<span style=\"color: red;\"> Error </span>";
+            newName = "";
             operation = splittedMessage[3];
         }
         else {
@@ -267,6 +268,7 @@ public static String generateHTMLTableRow(String message){
         String originalName = splittedOriginUrl[splittedOriginUrl.length - 1].split(".pdf")[0];
         finalOutput = newUrl + newName;
         return "\n<tr>\n" +
+                "<td>"+ i + "</td>\n" +
         "<td>"+ operation + "</td>\n" +
         "<td> <a href="+ originalUrl +">" + originalName +"</a></td>\n" +
         "<td>" + finalOutput + "</td>\n" +
@@ -321,11 +323,11 @@ public static String generateHTMLTableRow(String message){
                     messagecount++;
                 }
                 SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();
-//                String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/445821044214/requests_queue"; //Ori
-//                String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/445821044214/answers_queue"; //Ori
+                String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/445821044214/requests_queue"; //Ori
+                String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/445821044214/answers_queue"; //Ori
 
-                        String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/150025664389/requestsSqs"; //Ohad
-                        String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/150025664389/answersSqs"; //Ohad
+//                        String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/150025664389/requestsSqs"; //Ohad
+//                        String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/150025664389/answersSqs"; //Ohad
                 SendMessageRequest send_msg_request;
                 Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
                 messageAttributes.put("Name",MessageAttributeValue.builder().dataType("String").stringValue(appName).build());

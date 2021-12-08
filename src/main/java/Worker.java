@@ -56,20 +56,22 @@ public class Worker {
                 localFile.delete();
 
             } catch (Exception e) {
-                String errorMessage = "";
-                if (e instanceof MalformedURLException){
-                            errorMessage = "Malformed URL error" ;
-                }
-                else if (e instanceof ParserConfigurationException){
-                    errorMessage = "Parser Configuration error" ;
-                }
-                else if (e instanceof IOException){
-                    errorMessage = "IO error" ;
-                }
-                else if (e instanceof ProblemInProcessException){
-                    errorMessage = e.getMessage();
-//                    errorMessage = e.getCause();
-                }
+//                String errorMessage = "";
+//                if (e instanceof MalformedURLException){
+//                            errorMessage = "Malformed URL error" ;
+//                }
+//                else if (e instanceof ParserConfigurationException){
+//                    errorMessage = "Parser Configuration error" ;
+//                }
+//                else if (e instanceof IOException){
+////                    errorMessage = "IO error" ;
+//                    errorMessage = e.getMessage();
+//                }
+//                else if (e instanceof ProblemInProcessException){
+//                    errorMessage = e.getMessage();
+//
+//                }
+                String errorMessage = e.getMessage();
                 String outputMessage = splittedMessage[1] + "\tException\t" + errorMessage + "\t" + operation;;
                isMessageSent = sendMessage(appName, answersSqs, outputMessage);
             }
@@ -200,8 +202,8 @@ public class Worker {
 
     public static String uploadFileToS3(File localFile, String key_name){
         // Get s3
-        //String bucket_name = "oo-dspsp-ass1";
-        String bucket_name = "dsps-221";
+        String bucket_name = "oo-dspsp-ass1";
+//        String bucket_name = "dsps-221";
 
         // Upload input to S3
         s3.putObject(PutObjectRequest.builder()
