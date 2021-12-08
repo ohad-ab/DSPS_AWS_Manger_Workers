@@ -329,7 +329,7 @@ public static String generateHTMLTableRow(String message){
                 SendMessageRequest send_msg_request;
                 Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
                 messageAttributes.put("Name",MessageAttributeValue.builder().dataType("String").stringValue(appName).build());
-                System.out.println("sending messages to workers");
+                System.out.println("sending "+messagesToWorkers.size()+" messages to workers");
                 for (String messagesToWorker : messagesToWorkers)
                     sqs.sendMessage(SendMessageRequest.builder().queueUrl(requestsSqsUrl).messageBody(messagesToWorker)
                             .messageAttributes(messageAttributes).build());
@@ -366,11 +366,12 @@ public static String generateHTMLTableRow(String message){
                     if(messagecount == 0)
                         break;
                 }
+                System.out.println("received "+messagesToManager.size()+" messages");
                 File output = createOutput(messagesToManager);
-                s3.putObject(PutObjectRequest.builder().bucket(bucket).key("output").build(), RequestBody.fromFile(output));
+                s3.putObject(PutObjectRequest.builder().bucket(bucket).key("output"+appName).build(), RequestBody.fromFile(output));
                 messageAttributes = new HashMap<>();
                 messageAttributes.put("Name",MessageAttributeValue.builder().dataType("String").stringValue(appName).build());
-                send_msg_request=SendMessageRequest.builder().queueUrl(managerLocalSQSurl).messageBody("s3://"+bucket+"/"+"output")
+                send_msg_request=SendMessageRequest.builder().queueUrl(managerLocalSQSurl).messageBody("s3://"+bucket+"/"+"output"+appName)
                         .messageAttributes(messageAttributes).build();
                 sqs.sendMessage(send_msg_request);
 
