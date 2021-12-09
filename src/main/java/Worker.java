@@ -30,7 +30,8 @@ public class Worker {
 //    private static final String QUEUE_NAME = "testQueue" + new Date().getTime();
     private static final SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();
 
-
+    //       private static String bucket_name = "oo-dspsp-ass1";
+    private static String bucket_name = "dsps-221";
 
     public static void main(String[] args){
 //        Just an idea, we don't have to do it this way
@@ -202,8 +203,7 @@ public class Worker {
 
     public static String uploadFileToS3(File localFile, String key_name){
         // Get s3
-        String bucket_name = "oo-dspsp-ass1";
-//        String bucket_name = "dsps-221";
+
 
         // Upload input to S3
         s3.putObject(PutObjectRequest.builder()
