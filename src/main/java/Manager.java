@@ -20,12 +20,17 @@ public class Manager {
     private static boolean terminate = false;
     public static int activeWorker = 0;
     public static int workerCount = 0;
-//    public static String bucket = "dsps-221"; //Ohad
-    public static String bucket = "oo-dspsp-ass1"; //Ori
-//    public static String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/LOCAL-MANAGER";//ohad
-//    private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/MANAGER-LOCAL";//ohad
-        public static String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Local-Manager"; //ori
-        private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Manager-Local"; //ori
+    public static String bucket = "dsps-221"; //Ohad
+//    public static String bucket = "oo-dspsp-ass1"; //Ori
+    public static String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/LOCAL-MANAGER";//ohad
+    private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/MANAGER-LOCAL";//ohad
+//        public static String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Local-Manager"; //ori
+//        private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Manager-Local"; //ori
+//   private static String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/445821044214/requests_queue"; //Ori
+//    private static String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/445821044214/answers_queue"; //Ori
+
+                          private static String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/150025664389/requestsSqs"; //Ohad
+                      private static String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/150025664389/answersSqs"; //Ohad
     public static Integer numOfWorkers = 0;
     public static ExecutorService pool = Executors.newFixedThreadPool(10);
 
@@ -68,6 +73,8 @@ public class Manager {
                             sqs.deleteMessage(deleteMessageRequest);
                             pool.shutdown();
                             while(!pool.awaitTermination(30, TimeUnit.SECONDS)){}//waiting for all the threads to end
+                            sqs.purgeQueue(PurgeQueueRequest.builder().queueUrl(answersSqsUr).build());
+                            sqs.purgeQueue(PurgeQueueRequest.builder().queueUrl(requestsSqsUrl).build());
                             System.out.println("terminate");
                             processTerminate("Worker");
                             processTerminate("Manager");
@@ -323,11 +330,7 @@ public static String generateHTMLTableRow(String message, int i){
                     messagecount++;
                 }
                 SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();
-                String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/445821044214/requests_queue"; //Ori
-                String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/445821044214/answers_queue"; //Ori
 
-//                        String requestsSqsUrl = "https://sqs.us-east-1.amazonaws.com/150025664389/requestsSqs"; //Ohad
-//                        String answersSqsUr = "https://sqs.us-east-1.amazonaws.com/150025664389/answersSqs"; //Ohad
                 SendMessageRequest send_msg_request;
                 Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
                 messageAttributes.put("Name",MessageAttributeValue.builder().dataType("String").stringValue(appName).build());
