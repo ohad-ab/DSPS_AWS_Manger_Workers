@@ -38,6 +38,8 @@ public class Main {
     private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/MANAGER-LOCAL";
     //       private static String bucket_name = "oo-dspsp-ass1";
     private static String bucket_name = "dsps-221";
+    private static final String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Local-Manager"; //Ori
+    private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Manager-Local"; //Ori
     private static boolean terminate=true;
 
     public static void main(String[] args) throws Exception {
@@ -48,6 +50,8 @@ public class Main {
         Boolean terminate = args.length == 4 && args[3].equals("terminate"); //TODO: Check with Moshe, What is 'terminate' type?
 
         // Get s3
+        String bucket_name = "oo-dspsp-ass1";
+//        String bucket_name = "dsps-221";
 
 
         // Upload input to S3
