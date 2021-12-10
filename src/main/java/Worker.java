@@ -57,22 +57,8 @@ public class Worker {
                 localFile.delete();
 
             } catch (Exception e) {
-//                String errorMessage = "";
-//                if (e instanceof MalformedURLException){
-//                            errorMessage = "Malformed URL error" ;
-//                }
-//                else if (e instanceof ParserConfigurationException){
-//                    errorMessage = "Parser Configuration error" ;
-//                }
-//                else if (e instanceof IOException){
-////                    errorMessage = "IO error" ;
-//                    errorMessage = e.getMessage();
-//                }
-//                else if (e instanceof ProblemInProcessException){
-//                    errorMessage = e.getMessage();
-//
-//                }
                 String errorMessage = e.getMessage();
+                System.err.println(errorMessage);
                 String outputMessage = splittedMessage[1] + "\tException\t" + errorMessage + "\t" + operation;;
                isMessageSent = sendMessage(appName, answersSqs, outputMessage);
             }
@@ -86,7 +72,7 @@ public class Worker {
 
     public static File handleOperation(String operation, URL url, String keyName) throws IOException, ParserConfigurationException, ProblemInProcessException {
 
-        switch (operation) { //TODO: catch exeptions
+        switch (operation) {
             case "ToImage":
                 return new File(toImage(url, keyName));
             case "ToHTML":
@@ -94,7 +80,7 @@ public class Worker {
             case "ToText":
                 return new File(toText(url, keyName));
             default:
-                System.err.println("Operation not defined"); //TODO: throw exception?
+                System.err.println("Operation not defined");
                 throw new ProblemInProcessException("Wrong operation");
         }
     }
@@ -130,22 +116,14 @@ public class Worker {
     }
 
 
-    //    TODO: can we assume that it's only one image?
     public static String toImage(URL url, String keyName) throws IOException {
         InputStream is = url.openStream();
 
         PDDocument document = PDDocument.load(is);
         PDFRenderer pdfRenderer = new PDFRenderer(document);
         int pageCounter = 0;
-//        PDPage page = document.getPage(0);
-//        for (PDPage page : document.getPages()) {
-            // note that the page number parameter is zero based
-            BufferedImage bim = pdfRenderer.renderImageWithDPI(pageCounter, 300, ImageType.RGB);
-
-            // suffix in filename will be used as the file format
-//            ImageIOUtil.writeImage(bim, "./output/Images/" + keyName + "-" + (++pageCounter) + ".png", 300);
-            ImageIOUtil.writeImage(bim, "./" + keyName + ".png", 300);
-//        }
+        BufferedImage bim = pdfRenderer.renderImageWithDPI(pageCounter, 300, ImageType.RGB);
+        ImageIOUtil.writeImage(bim, "./" + keyName + ".png", 300);
         document.close();
         is.close();
         return "./" + keyName + ".png";
@@ -215,10 +193,9 @@ public class Worker {
         System.out.println("\nfile uploaded to:\n" +newUrl );
 
         return newUrl;
-//        return "s3://"+bucket_name+"/"+key_name;
     }
 
-    public static String generate_keyName(String path){//TODO: check if needed.
+    public static String generate_keyName(String path){
         String[] splitted = path.split("/");
         String newKey = splitted[splitted.length-1].split(".pdf")[0] + "_" + new Date().getTime();
         return  newKey;

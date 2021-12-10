@@ -11,7 +11,6 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.model.InstanceType;
 import software.amazon.awssdk.services.ec2.model.RunInstancesRequest;
 import software.amazon.awssdk.services.ec2.model.RunInstancesResponse;
-
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
 import software.amazon.awssdk.services.sqs.model.CreateQueueResponse;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
@@ -19,14 +18,11 @@ import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.QueueNameExistsException;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
-//import java.util.Date;
-//import java.util.List;
+import java.util.Date;
+import java.util.List;
 import java.io.File;
-//import java.util.Base64;
+import java.util.Base64;
 import java.util.*;
-
-
-//import InFile;
 
 
 public class Main {
@@ -34,25 +30,25 @@ public class Main {
     private static final String APP_NAME = "Local_" + new Date().getTime();
     private static final S3Client s3 = S3Client.builder().region(Region.US_EAST_1).build();
     private static final SqsClient sqs = SqsClient.builder().region(Region.US_EAST_1).build();//createSQS();
+
+    //    Ohad
     private static final String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/LOCAL-MANAGER";
     private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/150025664389/MANAGER-LOCAL";
-    //       private static String bucket_name = "oo-dspsp-ass1";
     private static String bucket_name = "dsps-221";
-    private static final String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Local-Manager"; //Ori
-    private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Manager-Local"; //Ori
-    private static boolean terminate=true;
+
+    //    Ori
+//    private static final String localManagerSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Local-Manager";
+//    private static final String managerLocalSQSurl = "https://sqs.us-east-1.amazonaws.com/445821044214/Manager-Local";
+//    private static String bucket_name = "oo-dspsp-ass1";
+
+    private static boolean terminate = true;
 
     public static void main(String[] args) throws Exception {
         // Get data from args
         File input = new File(args[0]);
         String output = args[1];
         int workerRatio = Integer.parseInt(args[2]);
-        Boolean terminate = args.length == 4 && args[3].equals("terminate"); //TODO: Check with Moshe, What is 'terminate' type?
-
-        // Get s3
-        String bucket_name = "oo-dspsp-ass1";
-//        String bucket_name = "dsps-221";
-
+        Boolean terminate = args.length == 4 && args[3].equals("terminate");
 
         // Upload input to S3
         String key_name = generate_keyName();
@@ -122,9 +118,8 @@ public class Main {
         return false;
     }
 
-    public static String generate_keyName(){//TODO: check if needed.
+    public static String generate_keyName(){
         String newKey = "input_"+APP_NAME;
-        //TODO: Get available name
         return  newKey;
     }
 
