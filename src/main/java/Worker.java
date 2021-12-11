@@ -52,7 +52,7 @@ public class Worker {
                 File localFile;
                 String outputMessage;
                 localFile = handleOperation(operation, url, keyName);
-                outputMessage = url + "\t" + uploadFileToS3(localFile, keyName) + "\t" + operation;
+                outputMessage = url + "\t" + uploadFileToS3(localFile, "changed/"+keyName) + "\t" + operation;
                 isMessageSent = sendMessage(appName, answersSqs, outputMessage);
                 localFile.delete();
 
@@ -103,7 +103,7 @@ public class Worker {
         return message;
     }
 
-    public static void deleteMessage(Message m, String sqsurl){ //TODO: handle exceptions???
+    public static void deleteMessage(Message m, String sqsurl){
         try{
             DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder()
                     .queueUrl(sqsurl)
